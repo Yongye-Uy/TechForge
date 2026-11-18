@@ -54,15 +54,6 @@
     </div>
   </header>
 
-  <!-- Telegram Mini App Banner (shows only when running inside Telegram or in preview) -->
-  <div id="tg-status-banner" class="alert alert-primary py-2 px-3 mb-0 rounded-0 border-0 border-bottom d-flex align-items-center justify-content-between small">
-    <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-telegram fs-5 text-primary"></i>
-      <span><strong>Telegram Mini App Mode:</strong> Ready for instant one-click testing!</span>
-    </div>
-    <span class="badge bg-success-subtle text-success border border-success-subtle">Test Auto-Pay ON</span>
-  </div>
-
   <main class="container py-4">
     <!-- Hero / Headline Section -->
     <section class="text-center py-3 mb-3">
@@ -289,13 +280,13 @@
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
-  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
-    <div id="liveToast" class="toast align-items-center text-bg-dark border-0 rounded-4 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+  <!-- Toast Notification Container (Top Center for high mobile/Telegram visibility) -->
+  <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1100;">
+    <div id="liveToast" class="toast align-items-center text-bg-dark border-0 rounded-pill shadow-lg px-2" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
-        <div class="toast-body d-flex align-items-center gap-2">
+        <div class="toast-body d-flex align-items-center gap-2 text-white py-2 px-3">
           <i class="bi bi-check-circle-fill text-success fs-5" id="toastIcon"></i>
-          <span id="toastMessage">Item updated</span>
+          <span id="toastMessage" class="fw-semibold small">Item updated</span>
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>

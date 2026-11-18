@@ -1,11 +1,22 @@
 /**
  * TechForge - E-Commerce Mini App Logic
  * Handles Telegram WebApp integration, product rendering, cart state,
- * quantity management, and simulated auto-checkout.
+ * custom quantity management, and simulated auto-checkout.
  */
 
-// Initialize Telegram WebApp API if running inside Telegram
+// Initialize Telegram WebApp API if available
 const tg = window.Telegram?.WebApp;
+
+// Helper: Check if truly running inside active Telegram client
+function isInsideTelegram() {
+  return Boolean(
+    tg &&
+    tg.initData &&
+    tg.initData.length > 0 &&
+    tg.platform &&
+    tg.platform !== 'unknown'
+  );
+}
 
 // App State
 let currentCategory = 'all';
@@ -25,18 +36,13 @@ const categoryFilters = document.getElementById('categoryFilters');
 const noProductsFound = document.getElementById('noProductsFound');
 const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 
-// Cart Elements
-const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-const cartItemsContainer = document.getElementById('cartItemsContainer');
-const emptyCartView = document.getElementById('emptyCartView');
-const cartFooter = document.getElementById('cartFooter');
-const cartTotalAmount = document.getElementById('cartTotalAmount');
-const cartCountBadge = document.getElementById('cartCountBadge');
-const checkoutBtn = document.getElementById('checkoutBtn');
-const clearCartBtn = document.getElementById('clearCartBtn');
+// Bootstrap Modal Instances
+let cartModal;
+let productDetailModal;
+let receiptModal;
+let liveToast;
 
 // Detail Modal Elements
-const productDetailModal = new bootstrap.Modal(document.getElementById('productDetailModal'));
 const modalImage = document.getElementById('modalImage');
 const modalCategory = document.getElementById('modalCategory');
 const modalTitle = document.getElementById('modalTitle');
@@ -53,8 +59,16 @@ const modalQtyPlus = document.getElementById('modalQtyPlus');
 const modalAddToCartBtn = document.getElementById('modalAddToCartBtn');
 const modalInstantBuyBtn = document.getElementById('modalInstantBuyBtn');
 
+// Cart Elements
+const cartItemsContainer = document.getElementById('cartItemsContainer');
+const emptyCartView = document.getElementById('emptyCartView');
+const cartFooter = document.getElementById('cartFooter');
+const cartTotalAmount = document.getElementById('cartTotalAmount');
+const cartCountBadge = document.getElementById('cartCountBadge');
+const checkoutBtn = document.getElementById('checkoutBtn');
+const clearCartBtn = document.getElementById('clearCartBtn');
+
 // Receipt Elements
-const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
 const receiptOrderId = document.getElementById('receiptOrderId');
 const receiptTimestamp = document.getElementById('receiptTimestamp');
 const receiptItemsList = document.getElementById('receiptItemsList');
@@ -64,57 +78,66 @@ const receiptTotal = document.getElementById('receiptTotal');
 const toastEl = document.getElementById('liveToast');
 const toastMessage = document.getElementById('toastMessage');
 const toastIcon = document.getElementById('toastIcon');
-const liveToast = new bootstrap.Toast(toastEl, { delay: 2500 });
 
 // ==========================================
-// 1. Telegram WebApp Initialization
+// 1. Telegram WebApp Integration
 // ==========================================
 function initTelegramApp() {
   if (tg) {
-    tg.ready();
-    tg.expand();
+    try {
+      tg.ready();
+      tg.expand();
 
-    // Set header & background colors matching Telegram theme
-    if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
-    if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
+      if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
 
-    // Display Telegram user info if available
-    const user = tg.initDataUnsafe?.user;
-    if (user) {
-      const userPill = document.getElementById('tg-user-pill');
-      const usernameSpan = document.getElementById('tg-username');
-      if (userPill && usernameSpan) {
-        usernameSpan.textContent = user.username ? `@${user.username}` : user.first_name || 'Telegram User';
-        userPill.classList.remove('d-none');
-        userPill.classList.add('d-flex');
+      // Display Telegram user info if available
+      const user = tg.initDataUnsafe?.user;
+      if (user) {
+        const userPill = document.getElementById('tg-user-pill');
+        const usernameSpan = document.getElementById('tg-username');
+        if (userPill && usernameSpan) {
+          usernameSpan.textContent = user.username ? `@${user.username}` : (user.first_name || 'Telegram User');
+          userPill.classList.remove('d-none');
+          userPill.classList.add('d-flex');
+        }
+      }
+
+      // Hook MainButton for checkout
+      if (tg.MainButton) {
+        tg.MainButton.onClick(() => {
+          if (cart.length > 0) {
+            if (cartModal) cartModal.hide();
+            setTimeout(() => {
+              executeAutoPurchase(cart, calculateCartTotal());
+            }, 300);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn("Telegram WebApp initialization error:", err);
+    }
+  }
+}
+
+// Trigger haptic feedback safely
+function triggerHaptic(type = 'impact', style = 'medium') {
+  try {
+    if (tg?.HapticFeedback) {
+      if (type === 'impact') {
+        tg.HapticFeedback.impactOccurred(style);
+      } else if (type === 'notification') {
+        tg.HapticFeedback.notificationOccurred(style);
       }
     }
-
-    // Configure Telegram MainButton for fast checkout
-    if (tg.MainButton) {
-      tg.MainButton.onClick(() => {
-        if (cart.length > 0) {
-          cartModal.hide();
-          executeAutoPurchase(cart, calculateCartTotal());
-        }
-      });
-    }
+  } catch (e) {
+    // Silently ignore outside of Telegram
   }
 }
 
-// Trigger haptic feedback if inside Telegram
-function triggerHaptic(type = 'impact', style = 'medium') {
-  if (tg?.HapticFeedback) {
-    if (type === 'impact') {
-      tg.HapticFeedback.impactOccurred(style);
-    } else if (type === 'notification') {
-      tg.HapticFeedback.notificationOccurred(style);
-    }
-  }
-}
-
-// Show Toast feedback
+// Display visual toast alert
 function showToast(message, isSuccess = true) {
+  if (!toastMessage || !toastIcon || !liveToast) return;
   toastMessage.textContent = message;
   toastIcon.className = isSuccess 
     ? "bi bi-check-circle-fill text-success fs-5" 
@@ -136,7 +159,6 @@ function renderProducts() {
     return matchesCategory && matchesSearch;
   });
 
-  // Update counts
   productCountLabel.textContent = `Showing ${filtered.length} of ${PRODUCTS.length} items`;
 
   if (filtered.length === 0) {
@@ -152,7 +174,7 @@ function renderProducts() {
       <div class="col">
         <div class="product-card h-100 shadow-sm">
           <div class="product-image-wrapper">
-            <span class="product-badge-overlay badge bg-dark-subtle text-dark border border-secondary-subtle rounded-pill">
+            <span class="product-badge-overlay badge bg-dark text-white rounded-pill shadow-sm">
               ${product.categoryLabel}
             </span>
             <img 
@@ -182,14 +204,21 @@ function renderProducts() {
                   In Stock (${product.stock})
                 </span>
               </div>
+              
               <div class="d-grid gap-2">
                 <button class="btn btn-outline-primary btn-sm rounded-pill fw-semibold view-detail-btn" data-id="${product.id}">
-                  <i class="bi bi-eye me-1"></i> View Details
+                  <i class="bi bi-eye me-1"></i> View Details & Quantity
                 </button>
-                <button class="btn btn-primary btn-sm rounded-pill fw-semibold quick-buy-btn" data-id="${product.id}">
-                  <i class="bi bi-lightning-charge me-1"></i> Instant Buy
-                </button>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-primary btn-sm rounded-pill fw-semibold flex-grow-1 quick-buy-btn" data-id="${product.id}" title="Instant 1-Click Buy">
+                    <i class="bi bi-lightning-charge-fill me-1"></i> Buy Now
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm rounded-pill quick-cart-btn px-3" data-id="${product.id}" title="Add 1 to Cart">
+                    <i class="bi bi-cart-plus"></i>
+                  </button>
+                </div>
               </div>
+
             </div>
           </div>
         </div>
@@ -197,26 +226,51 @@ function renderProducts() {
     `;
   }).join('');
 
-  // Attach event listeners to buttons
+  // Event Listeners for Product Card Buttons
   document.querySelectorAll('.view-detail-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
       const id = parseInt(btn.getAttribute('data-id'));
       openProductDetail(id);
     });
   });
 
+  // Direct 1-Click Buy from Card (Buys 1 item immediately)
   document.querySelectorAll('.quick-buy-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
       const id = parseInt(btn.getAttribute('data-id'));
-      openProductDetail(id, true);
+      const product = PRODUCTS.find(p => p.id === id);
+      if (product) {
+        const purchaseItems = [{
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          image: product.image
+        }];
+        executeAutoPurchase(purchaseItems, product.price);
+      }
+    });
+  });
+
+  // Direct 1-Click Add to Cart from Card
+  document.querySelectorAll('.quick-cart-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = parseInt(btn.getAttribute('data-id'));
+      const product = PRODUCTS.find(p => p.id === id);
+      if (product) {
+        addToCart(product, 1);
+      }
     });
   });
 }
 
 // ==========================================
-// 3. Product Detail View & Quantity Control
+// 3. Product Detail Modal & Custom Quantity
 // ==========================================
-function openProductDetail(productId, focusBuy = false) {
+function openProductDetail(productId) {
   const product = PRODUCTS.find(p => p.id === productId);
   if (!product) return;
 
@@ -224,7 +278,7 @@ function openProductDetail(productId, focusBuy = false) {
   modalQuantity = 1;
   modalQuantityInput.value = 1;
 
-  // Populate modal data
+  // Set Modal Content
   modalTitle.textContent = product.name;
   modalCategory.textContent = product.categoryLabel;
   modalPrice.textContent = `$${product.price.toFixed(2)}`;
@@ -237,7 +291,7 @@ function openProductDetail(productId, focusBuy = false) {
     this.src = `https://placehold.co/600x400/1e293b/ffffff?text=${encodeURIComponent(product.name)}`;
   };
 
-  // Star ratings
+  // Star Ratings
   const fullStars = Math.floor(product.rating);
   let starsHtml = '';
   for (let i = 0; i < fullStars; i++) starsHtml += '<i class="bi bi-star-fill me-1"></i>';
@@ -245,7 +299,7 @@ function openProductDetail(productId, focusBuy = false) {
   modalRatingStars.innerHTML = starsHtml;
   modalRatingText.textContent = `${product.rating} (${product.reviewCount} verified reviews)`;
 
-  // Specs List
+  // Specifications
   modalSpecsList.innerHTML = product.specs.map(spec => `
     <li>
       <i class="bi bi-check-circle-fill text-primary"></i>
@@ -255,16 +309,7 @@ function openProductDetail(productId, focusBuy = false) {
 
   updateModalSubtotal();
   productDetailModal.show();
-
   triggerHaptic('impact', 'light');
-
-  if (focusBuy) {
-    setTimeout(() => {
-      modalInstantBuyBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      modalInstantBuyBtn.classList.add('pulse-animation');
-      setTimeout(() => modalInstantBuyBtn.classList.remove('pulse-animation'), 1000);
-    }, 300);
-  }
 }
 
 function updateModalSubtotal() {
@@ -274,7 +319,7 @@ function updateModalSubtotal() {
   modalSubtotal.textContent = `$${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Modal Quantity Listeners
+// Quantity +/- Listeners
 modalQtyMinus.addEventListener('click', () => {
   let val = parseInt(modalQuantityInput.value) || 1;
   if (val > 1) {
@@ -302,7 +347,7 @@ modalQuantityInput.addEventListener('input', () => {
   updateModalSubtotal();
 });
 
-// Add to Cart from Detail Modal
+// Add To Cart from Detail Modal
 modalAddToCartBtn.addEventListener('click', () => {
   if (!selectedProduct) return;
   const qty = parseInt(modalQuantityInput.value) || 1;
@@ -310,7 +355,7 @@ modalAddToCartBtn.addEventListener('click', () => {
   productDetailModal.hide();
 });
 
-// Instant Buy from Detail Modal (Auto Purchase without real payment)
+// Instant Buy from Detail Modal (Allows any amount)
 modalInstantBuyBtn.addEventListener('click', () => {
   if (!selectedProduct) return;
   const qty = parseInt(modalQuantityInput.value) || 1;
@@ -323,12 +368,15 @@ modalInstantBuyBtn.addEventListener('click', () => {
   }];
   const total = selectedProduct.price * qty;
 
+  // Hide detail modal then show receipt modal to avoid backdrop collision
   productDetailModal.hide();
-  executeAutoPurchase(purchaseItems, total);
+  setTimeout(() => {
+    executeAutoPurchase(purchaseItems, total);
+  }, 350);
 });
 
 // ==========================================
-// 4. Cart Operations & Persistence
+// 4. Shopping Cart Management
 // ==========================================
 function saveCart() {
   localStorage.setItem('techforge_cart', JSON.stringify(cart));
@@ -337,6 +385,7 @@ function saveCart() {
 }
 
 function updateCartBadge() {
+  if (!cartCountBadge) return;
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   cartCountBadge.textContent = totalItems;
   if (totalItems > 0) {
@@ -354,7 +403,7 @@ function updateTelegramMainButton() {
   if (!tg?.MainButton) return;
   const total = calculateCartTotal();
   if (cart.length > 0) {
-    tg.MainButton.setText(`AUTO-BUY NOW ($${total.toFixed(2)})`);
+    tg.MainButton.setText(`CHECKOUT ($${total.toFixed(2)})`);
     tg.MainButton.show();
   } else {
     tg.MainButton.hide();
@@ -377,7 +426,7 @@ function addToCart(product, quantity = 1) {
 
   saveCart();
   triggerHaptic('notification', 'success');
-  showToast(`Added ${quantity}x "${product.name}" to cart!`);
+  showToast(`Added ${quantity}x "${product.name}" to cart! Click Cart to view.`);
 }
 
 function renderCart() {
@@ -399,9 +448,9 @@ function renderCart() {
           <div class="title" title="${item.name}">${item.name}</div>
           <div class="text-primary fw-semibold small">$${item.price.toFixed(2)} each</div>
           
-          <!-- Quantity Control for any amount -->
+          <!-- Quantity Control for any amount inside cart -->
           <div class="d-flex align-items-center gap-2 mt-2">
-            <div class="input-group input-group-sm quantity-control" style="width: 120px;">
+            <div class="input-group input-group-sm quantity-control" style="width: 130px;">
               <button class="btn btn-outline-secondary cart-qty-minus" data-index="${index}" type="button">
                 <i class="bi bi-dash"></i>
               </button>
@@ -411,7 +460,7 @@ function renderCart() {
               </button>
             </div>
             <button class="btn btn-link text-danger p-0 ms-auto remove-item-btn" data-index="${index}" title="Remove item">
-              <i class="bi bi-trash3"></i>
+              <i class="bi bi-trash3 fs-6"></i>
             </button>
           </div>
         </div>
@@ -421,7 +470,7 @@ function renderCart() {
 
   cartTotalAmount.textContent = `$${calculateCartTotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // Attach handlers
+  // Quantity handlers in cart
   document.querySelectorAll('.cart-qty-minus').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-index'));
@@ -431,7 +480,6 @@ function renderCart() {
         renderCart();
         triggerHaptic('impact', 'light');
       } else {
-        // If 1, remove item
         cart.splice(idx, 1);
         saveCart();
         renderCart();
@@ -473,13 +521,19 @@ function renderCart() {
   });
 }
 
-// Cart checkout & clear events
+// Cart Checkout Button (Auto-purchase all items)
 checkoutBtn.addEventListener('click', () => {
   if (cart.length === 0) return;
+  const itemsToBuy = [...cart];
+  const total = calculateCartTotal();
+
   cartModal.hide();
-  executeAutoPurchase(cart, calculateCartTotal());
+  setTimeout(() => {
+    executeAutoPurchase(itemsToBuy, total);
+  }, 350);
 });
 
+// Clear Cart Button
 clearCartBtn.addEventListener('click', () => {
   if (confirm("Are you sure you want to clear your cart?")) {
     cart = [];
@@ -489,17 +543,13 @@ clearCartBtn.addEventListener('click', () => {
   }
 });
 
-// Re-render cart whenever the modal is shown
-document.getElementById('cartModal').addEventListener('show.bs.modal', renderCart);
-
 // ==========================================
-// 5. Simulated Auto-Purchase Flow
+// 5. Simulated Auto-Purchase Execution
 // ==========================================
 function executeAutoPurchase(items, totalAmount) {
-  // Trigger Telegram Haptic Feedback
   triggerHaptic('notification', 'success');
 
-  // Generate simulated receipt
+  // Generate Receipt Data
   const randomId = 'TF-' + Math.floor(100000 + Math.random() * 900000);
   const now = new Date();
   const timestampStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -509,39 +559,24 @@ function executeAutoPurchase(items, totalAmount) {
   receiptTotal.textContent = `$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   receiptItemsList.innerHTML = items.map(item => `
-    <li class="d-flex justify-content-between align-items-center py-1">
+    <li class="d-flex justify-content-between align-items-center py-1 border-bottom">
       <span class="text-truncate me-2">
-        <strong>${item.quantity}x</strong> ${item.name}
+        <strong class="text-primary">${item.quantity}x</strong> ${item.name}
       </span>
-      <span class="fw-semibold text-nowrap">$${(item.price * item.quantity).toFixed(2)}</span>
+      <span class="fw-bold text-nowrap">$${(item.price * item.quantity).toFixed(2)}</span>
     </li>
   `).join('');
 
-  // If items bought came from cart, clear cart
+  // Clear cart if items were purchased
   cart = [];
   saveCart();
 
-  // If Telegram WebApp supports popups, show native alert or show Bootstrap receipt modal
-  if (tg?.showPopup) {
-    tg.showPopup({
-      title: "Purchase Successful!",
-      message: `Order #${randomId} confirmed!\nTotal Paid (Simulated): $${totalAmount.toFixed(2)}\nThank you for testing TechForge Mini App!`,
-      buttons: [{ type: 'ok', text: 'View Full Receipt' }]
-    }, () => {
-      receiptModal.show();
-    });
-  } else {
-    receiptModal.show();
-  }
+  // GUARANTEED MODAL DISPLAY: Always show receipt modal directly
+  receiptModal.show();
 
-  // If in Telegram bot chat, optionally send data back to bot
-  // Note: tg.sendData works only when mini app is opened via a KeyboardButton
-  try {
-    if (tg?.sendData && false) { // Kept disabled by default so webview doesn't abruptly close unless requested
-      tg.sendData(JSON.stringify({ orderId: randomId, total: totalAmount, count: items.length }));
-    }
-  } catch (e) {
-    console.log("sendData ignored in web context", e);
+  // If inside genuine Telegram client, also trigger Telegram notification
+  if (isInsideTelegram() && tg?.showAlert) {
+    tg.showAlert(`🎉 Auto-Purchase Confirmed!\nOrder #${randomId}\nTotal: $${totalAmount.toFixed(2)}`);
   }
 }
 
@@ -594,10 +629,22 @@ resetFiltersBtn.addEventListener('click', () => {
 });
 
 // ==========================================
-// 7. Initialize Application
+// 7. App Initialization on DOM Ready
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize Bootstrap Modals safely after DOM is loaded
+  cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+  productDetailModal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+  receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+  liveToast = new bootstrap.Toast(document.getElementById('liveToast'), { delay: 3500 });
+
+  // Re-render cart whenever cart modal opens
+  document.getElementById('cartModal').addEventListener('show.bs.modal', renderCart);
+
+  // Initialize Telegram
   initTelegramApp();
+
+  // Initial Render
   renderProducts();
   updateCartBadge();
   updateTelegramMainButton();
