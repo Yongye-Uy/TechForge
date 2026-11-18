@@ -1,114 +1,155 @@
-# ⚡ TechForge - Telegram Mini App E-Commerce Store
+# ⚡ TechForge - Full-Stack E-Commerce & Telegram Mini App
 
-**TechForge** is a fast, responsive, modern computer hardware store designed specifically to run seamlessly as a **Telegram Mini App (TMA)** or standalone web application. Built purely with **HTML5, Bootstrap 5, Custom CSS, and Vanilla JavaScript**, it requires no build steps or heavy dependencies and is ready for 1-click hosting on **Vercel**.
+**TechForge** is an enterprise-grade computer hardware store built with a **Node.js/Express & PostgreSQL** backend, responsive **Bootstrap 5 & Vanilla JS** frontend, and native **Telegram Mini App (TMA)** integration.
 
 ---
 
-## 🌟 Key Features
+## 🌟 Full-Stack Features
 
-- 🖥️ **Computer Components Catalog**: 10 products across Peripherals, Components, Displays, and Accessories (RTX 4070 Ti Super, Mechanical Keyboard, Wireless Mouse, 4K Gaming Monitor, NVMe SSD, DDR5 RAM, Ergonomic Stand, etc.).
-- 🔍 **Search & Category Filters**: Real-time instant filtering by category and keywords.
-- 📦 **View Product Details**: High-resolution modal with complete technical specifications, verified ratings, and stock status.
-- 🔢 **Custom Quantities (Any Amount)**: Increase, decrease, or manually type in any positive integer quantity for bulk purchases.
-- ⚡ **Instant Auto-Purchase (Assignment Test Mode)**:
-  - No real payment or credit card required.
-  - One-click auto-purchase generates an immediate order receipt with a simulated order ID (`#TF-XXXXXX`), timestamp, item breakdown, and total.
-  - Automatically clears the cart and triggers Telegram Haptic Feedback.
-- ✈️ **Native Telegram Mini App Integration**:
-  - Embedded `telegram-web-app.js` SDK.
-  - Automatic `expand()` to full screen upon loading.
-  - Dynamic `MainButton` integration that displays the total cart price and allows checking out directly from the Telegram UI.
-  - Detects the user's Telegram username / display name.
-  - Native Telegram popups (`showPopup`) and haptic feedback (`HapticFeedback`).
+1. **Database (PostgreSQL / pgsql)**:
+   - Relational PostgreSQL database using `pg` driver with auto-initializing schema ([schema.sql](file:///c:/Year4/CS%20491%20-%20Introduction%20to%20Enterprise%20Applications%20Development/schema.sql)).
+   - Tables: `users`, `orders`, and `order_items`.
+   - Built-in local fallback store for seamless offline/local grading before a remote PostgreSQL database is configured.
+
+2. **Authentication (Sign Up / Log In / Log Out)**:
+   - Secure password hashing with `bcryptjs` and session management via JWT.
+   - Customers must have an account to purchase products.
+   - Profile management with persistent login state.
+
+3. **Admin Dashboard & Default Admin Account**:
+   - Access URL: `/admin.html`
+   - **Default Admin Credentials:**
+     - **Username:** `admin1`
+     - **Password:** `admin-1`
+   - **Admin Capabilities:**
+     - **Overview KPIs:** Real-time revenue, total orders, customer count, and database status.
+     - **Customer List:** View all registered customers, email, phone, registered address, total orders, and total spent.
+     - **Customer Details:** Click any customer to inspect their full profile and every product they have ever purchased.
+     - **All Orders:** Inspect every order receipt and breakdown (no delivery processing required).
+
+4. **Address Verification & Purchase Flow**:
+   - Customers must verify or enter their shipping address and phone number before placing an order.
+   - Buy any custom quantity (unlimited stock).
+   - Generates simulated order receipts with random Order Codes (`#TF-XXXXXX`).
+
+5. **Customer Buy History**:
+   - Customers can view their past orders, items purchased, and delivery addresses directly from the "My Buy History" menu.
+
+6. **Telegram Admin Bot Notifications**:
+   - When any customer places an order, the backend automatically dispatches a real-time Telegram alert to the store administrator via Telegram Bot API with the customer's name, phone, shipping address, item breakdown, and total.
+
+7. **Telegram Mini App Contrast Fix**:
+   - Solved the Telegram dark mode bug where specification bullet points appeared as white text on a light background.
+   - High-contrast typography and fluid scrolling across mobile and desktop.
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-├── index.html          # Main HTML structure with Bootstrap 5 & modals
+├── server.js           # Express API server & static asset host
+├── db.js               # PostgreSQL connection, auto-migrations & models
+├── telegram.js         # Telegram Bot notification dispatcher
+├── schema.sql          # PostgreSQL DDL script
+├── .env.example        # Environment variable template
+├── api/
+│   └── index.js        # Vercel serverless function entrypoint
+├── index.html          # Storefront, customer auth, cart & checkout modals
+├── admin.html          # Administrator portal for customers and orders
 ├── css/
-│   └── style.css       # Custom styles & Telegram WebApp color variables
+│   └── style.css       # Custom styling & Telegram dark/light contrast rules
 ├── js/
-│   ├── products.js     # Data store containing the 10 PC hardware items
-│   └── app.js          # Cart logic, search/filters, auto-buy & Telegram SDK glue
-├── vercel.json         # Vercel configuration with iframe headers for Telegram Web
-└── README.md           # Documentation & step-by-step setup guide
+│   ├── products.js     # Catalog of 10 computer hardware components
+│   ├── app.js          # Storefront logic, auth glue & checkout handlers
+│   └── admin.js        # Admin dashboard analytics & order inspectors
+├── vercel.json         # Vercel routing and Telegram iframe security headers
+└── README.md           # Documentation
 ```
 
 ---
 
-## 🚀 How to Test Locally
+## 🚀 How to Run Locally
 
-You can test the store in any browser immediately:
-
-### Option 1: Python HTTP Server
-Open your terminal in this directory and run:
-```bash
-python -m http.server 3000
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Option 2: VS Code Live Server
-Right-click `index.html` and click **"Open with Live Server"**.
-
----
-
-## ☁️ How to Deploy on Vercel
-
-1. **Push to GitHub**:
-   - Initialize a git repository and push these files to a GitHub repo:
-     ```bash
-     git init
-     git add .
-     git commit -m "Initial commit of TechForge Mini App"
-     git branch -M main
-     # Add your remote and push
-     git remote add origin https://github.com/<your-username>/<your-repo-name>.git
-     git push -u origin main
-     ```
-2. **Deploy on Vercel**:
-   - Go to [vercel.com](https://vercel.com) and log in.
-   - Click **"Add New..."** -> **"Project"**.
-   - Select your GitHub repository.
-   - Leave the Framework Preset as **Other** (it's pure static HTML/CSS/JS).
-   - Click **Deploy**.
-3. **Copy your HTTPS URL**:
-   - Once deployed, Vercel will give you a live HTTPS URL (e.g., `https://techforge-store.vercel.app`).
-   - *(Note: Telegram requires an **HTTPS** URL for Mini Apps, which Vercel provides automatically!)*
-
----
-
-## 🤖 How to Put It as a Mini App in Telegram
-
-Follow these steps using Telegram's official `@BotFather`:
-
-### Step 1: Create a Telegram Bot
-1. Open Telegram and search for [`@BotFather`](https://t.me/BotFather).
-2. Send `/newbot`.
-3. Give your bot a display name (e.g., `TechForge Store Bot`).
-4. Give your bot a unique username ending in `bot` (e.g., `TechForgeStoreTestBot`).
-5. Save the Bot Token provided by BotFather.
-
-### Step 2: Create the Mini App Link
-1. In `@BotFather`, send `/newapp`.
-2. Choose your newly created bot from the list.
-3. Enter a title for the Mini App (e.g., `TechForge PC Store`).
-4. Enter a short description (e.g., `Buy computer hardware and test auto-purchase`).
-5. Upload an image/photo for the app icon when asked (640x360 px or any square/photo).
-6. When prompted for the **Web App URL**, paste your **Vercel deployment URL**:
-   ```text
-   https://your-project-name.vercel.app
+1. **Install Dependencies**:
+   ```bash
+   npm install
    ```
-7. Enter a short name for the app (e.g., `store`).
-8. BotFather will generate your direct Mini App link:
-   `https://t.me/TechForgeStoreTestBot/store`
 
-### Step 3: (Optional) Set as the Bot's Menu Button
-To make the Mini App launch from the permanent bottom-left menu button in your bot:
-1. In `@BotFather`, send `/setmenubutton`.
-2. Select your bot.
-3. Click or send the URL of your deployed Vercel app (`https://your-project-name.vercel.app`).
-4. Set the button text (e.g., `Open Store` or `🛒 Shop Now`).
+2. **Start the Application**:
+   ```bash
+   npm start
+   ```
+   The application will start on [http://localhost:3000](http://localhost:3000).
 
-Now open your bot, tap the Menu Button or the direct link, and enjoy your Telegram Mini App with 1-click test checkout!
+3. **Log In to Test**:
+   - **Storefront:** [http://localhost:3000](http://localhost:3000)
+     - Click **Sign In** -> **Create Account** to register a customer account.
+     - Select a computer component, choose any quantity, and click **Buy Now**.
+     - Enter your shipping address and confirm your purchase.
+   - **Admin Portal:** [http://localhost:3000/admin.html](http://localhost:3000/admin.html)
+     - Username: `admin1`
+     - Password: `admin-1`
+     - View the customer you registered, their address, and what they bought!
+
+---
+
+## 🐘 Configuring PostgreSQL (`DATABASE_URL`)
+
+To connect your own PostgreSQL database (e.g. from [Neon.tech](https://neon.tech), [Supabase](https://supabase.com), [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), or local PostgreSQL):
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Set your PostgreSQL connection string:
+   ```env
+   DATABASE_URL=postgresql://username:password@ep-example.neon.tech/neondb?sslmode=require
+   ```
+3. When you run `npm start`, the app automatically connects to PostgreSQL and creates the `users`, `orders`, and `order_items` tables with the default admin `admin1` / `admin-1`!
+
+---
+
+## 🤖 Configuring Telegram Admin Notifications
+
+To receive real-time Telegram messages when an order is made:
+
+1. Open Telegram and search for [@BotFather](https://t.me/BotFather).
+2. Create a bot using `/newbot` and copy your **Bot Token**.
+3. Find your personal Telegram Chat ID:
+   - Message [@userinfobot](https://t.me/userinfobot) or [@raw_data_bot](https://t.me/raw_data_bot) and copy the `Id` number (e.g. `123456789`).
+4. Add these into your `.env` or Vercel Environment Variables:
+   ```env
+   TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+   TELEGRAM_ADMIN_CHAT_ID=123456789
+   ```
+Whenever any customer places an order, your Telegram bot will instantly message you:
+```text
+🛍️ NEW ORDER RECEIVED!
+📦 Order Code: #TF-492465
+👤 Customer: Jane Customer (@janecust)
+📞 Phone: 123-456-7890
+📍 Shipping Address: 742 Evergreen Terrace
+🛒 Items Bought:
+• 1x ApexPro RGB Mechanical Keyboard ($129.99)
+• 1x ViperStrike Wireless Gaming Mouse ($69.99)
+💰 Total Amount: $199.98
+```
+
+---
+
+## ☁️ Deploying to Vercel
+
+1. Commit and push your code to your GitHub repository:
+   ```bash
+   git add .
+   git commit -m "Full-stack store with PostgreSQL, Admin portal, and Telegram notifications"
+   git push origin main
+   ```
+2. In [Vercel](https://vercel.com):
+   - Import your GitHub repo.
+   - In **Settings** -> **Environment Variables**, you can optionally add:
+     - `DATABASE_URL`: Your PostgreSQL connection string.
+     - `JWT_SECRET`: Any random string (e.g., `my_secret_key_123`).
+     - `TELEGRAM_BOT_TOKEN`: Your Telegram Bot Token.
+     - `TELEGRAM_ADMIN_CHAT_ID`: Your Telegram Admin User Chat ID.
+3. Click **Deploy**. Vercel will host both your frontend and your Node.js serverless API routes on your HTTPS URL!

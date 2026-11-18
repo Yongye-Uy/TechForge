@@ -1,33 +1,39 @@
 /**
- * TechForge - E-Commerce Mini App Logic
- * Handles Telegram WebApp integration, product rendering, cart state,
- * custom quantity management, and simulated auto-checkout.
+ * TechForge - Modern E-Commerce & Telegram Mini App Logic
+ * Integrated with PostgreSQL Backend, Authentication, Custom Quantities,
+ * Address Verification, and Real-time Telegram Admin Alerts.
  */
+
+const API_BASE = '/api';
 
 // Initialize Telegram WebApp API if available
 const tg = window.Telegram?.WebApp;
 
-// Helper: Check if truly running inside active Telegram client
-function isInsideTelegram() {
-  return Boolean(
-    tg &&
-    tg.initData &&
-    tg.initData.length > 0 &&
-    tg.platform &&
-    tg.platform !== 'unknown'
-  );
-}
-
 // App State
+let currentUser = null;
+let authToken = localStorage.getItem('techforge_token') || null;
 let currentCategory = 'all';
 let searchQuery = '';
 let selectedProduct = null;
 let modalQuantity = 1;
 
+// Stored items pending checkout when prompt address opens
+let pendingCheckoutItems = [];
+let pendingCheckoutTotal = 0;
+
 // Shopping Cart (Persisted in localStorage)
 let cart = JSON.parse(localStorage.getItem('techforge_cart') || '[]');
 
-// DOM Elements
+// DOM Elements: Navigation & Auth
+const guestNavSection = document.getElementById('guestNavSection');
+const userNavSection = document.getElementById('userNavSection');
+const navUsername = document.getElementById('navUsername');
+const navFullName = document.getElementById('navFullName');
+const adminPortalLink = document.getElementById('adminPortalLink');
+const logoutBtn = document.getElementById('logoutBtn');
+const viewMyOrdersNavBtn = document.getElementById('viewMyOrdersNavBtn');
+
+// DOM Elements: Catalog & Filters
 const productGrid = document.getElementById('productGrid');
 const productCountLabel = document.getElementById('productCountLabel');
 const searchInput = document.getElementById('searchInput');
@@ -37,8 +43,11 @@ const noProductsFound = document.getElementById('noProductsFound');
 const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 
 // Bootstrap Modal Instances
-let cartModal;
+let authModal;
 let productDetailModal;
+let cartModal;
+let checkoutAddressModal;
+let myOrdersModal;
 let receiptModal;
 let liveToast;
 
@@ -67,9 +76,26 @@ const cartCountBadge = document.getElementById('cart-count-badge');
 const checkoutBtn = document.getElementById('checkoutBtn');
 const clearCartBtn = document.getElementById('clearCartBtn');
 
+// Auth Form Elements
+const authAlert = document.getElementById('authAlert');
+const loginForm = document.getElementById('loginForm');
+const signupForm = document.getElementById('signupForm');
+
+// Checkout Address Modal Elements
+const checkoutAddressForm = document.getElementById('checkoutAddressForm');
+const checkoutRecipientName = document.getElementById('checkoutRecipientName');
+const checkoutRecipientPhone = document.getElementById('checkoutRecipientPhone');
+const checkoutRecipientAddress = document.getElementById('checkoutRecipientAddress');
+const checkoutAddressTotal = document.getElementById('checkoutAddressTotal');
+
+// My Orders Modal Elements
+const myOrdersListContainer = document.getElementById('myOrdersListContainer');
+
 // Receipt Elements
 const receiptOrderId = document.getElementById('receiptOrderId');
+const receiptCustomerName = document.getElementById('receiptCustomerName');
 const receiptTimestamp = document.getElementById('receiptTimestamp');
+const receiptAddress = document.getElementById('receiptAddress');
 const receiptItemsList = document.getElementById('receiptItemsList');
 const receiptTotal = document.getElementById('receiptTotal');
 
@@ -79,7 +105,155 @@ const toastMessage = document.getElementById('toastMessage');
 const toastIcon = document.getElementById('toastIcon');
 
 // ==========================================
-// 1. Telegram WebApp Integration
+// 1. Authentication & Session Management
+// ==========================================
+async function checkAuthSession() {
+  if (!authToken) {
+    updateAuthUI(null);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      currentUser = data.user;
+      updateAuthUI(currentUser);
+      return;
+    }
+  } catch (err) {
+    console.warn('Session verification error:', err);
+  }
+
+  // Token expired or invalid
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('techforge_token');
+  updateAuthUI(null);
+}
+
+function updateAuthUI(user) {
+  if (user) {
+    guestNavSection.classList.add('d-none');
+    guestNavSection.classList.remove('d-flex');
+    userNavSection.classList.remove('d-none');
+    userNavSection.classList.add('d-flex');
+
+    navUsername.textContent = user.username;
+    navFullName.textContent = user.full_name || user.username;
+
+    // Show Admin Link if user is admin
+    if (user.role === 'admin') {
+      adminPortalLink.classList.remove('d-none');
+    } else {
+      adminPortalLink.classList.add('d-none');
+    }
+  } else {
+    guestNavSection.classList.remove('d-none');
+    guestNavSection.classList.add('d-flex');
+    userNavSection.classList.add('d-none');
+    userNavSection.classList.remove('d-flex');
+    adminPortalLink.classList.add('d-none');
+  }
+}
+
+// Login Handler
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  authAlert.classList.add('d-none');
+
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('techforge_token', authToken);
+
+    if (currentUser.role === 'admin') {
+      localStorage.setItem('techforge_admin_token', authToken);
+    }
+
+    updateAuthUI(currentUser);
+    authModal.hide();
+    showToast(`Welcome back, ${currentUser.full_name || currentUser.username}!`);
+  } catch (err) {
+    authAlert.textContent = err.message;
+    authAlert.classList.remove('d-none');
+  }
+});
+
+// Sign Up Handler
+signupForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  authAlert.classList.add('d-none');
+
+  const fullName = document.getElementById('signupFullName').value.trim();
+  const username = document.getElementById('signupUsername').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const address = document.getElementById('signupAddress').value.trim();
+  const password = document.getElementById('signupPassword').value.trim();
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName, username, email, phone, address, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('techforge_token', authToken);
+
+    updateAuthUI(currentUser);
+    authModal.hide();
+    showToast(`Account created! Welcome to TechForge, ${currentUser.full_name}!`);
+  } catch (err) {
+    authAlert.textContent = err.message;
+    authAlert.classList.remove('d-none');
+  }
+});
+
+// Logout Handler
+logoutBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('techforge_token');
+  localStorage.removeItem('techforge_admin_token');
+  updateAuthUI(null);
+  showToast('You have been logged out.');
+});
+
+// Trigger Auth Required Check
+function requireLogin(callbackAction) {
+  if (currentUser) {
+    callbackAction();
+  } else {
+    authAlert.textContent = 'Please sign in or create an account to purchase products.';
+    authAlert.classList.remove('d-none');
+    authModal.show();
+  }
+}
+
+// ==========================================
+// 2. Telegram WebApp Integration
 // ==========================================
 function initTelegramApp() {
   if (tg) {
@@ -90,25 +264,13 @@ function initTelegramApp() {
       if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
       if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
 
-      // Display Telegram user info if available
-      const user = tg.initDataUnsafe?.user;
-      if (user) {
-        const userPill = document.getElementById('tg-user-pill');
-        const usernameSpan = document.getElementById('tg-username');
-        if (userPill && usernameSpan) {
-          usernameSpan.textContent = user.username ? `@${user.username}` : (user.first_name || 'Telegram User');
-          userPill.classList.remove('d-none');
-          userPill.classList.add('d-flex');
-        }
-      }
-
-      // Hook MainButton for checkout
+      // Hook Telegram MainButton for quick checkout
       if (tg.MainButton) {
         tg.MainButton.onClick(() => {
           if (cart.length > 0) {
-            if (cartModal) cartModal.hide();
+            cartModal.hide();
             setTimeout(() => {
-              executeAutoPurchase(cart, calculateCartTotal());
+              promptCheckoutAddress(cart, calculateCartTotal());
             }, 300);
           }
         });
@@ -119,7 +281,6 @@ function initTelegramApp() {
   }
 }
 
-// Trigger haptic feedback safely
 function triggerHaptic(type = 'impact', style = 'medium') {
   try {
     if (tg?.HapticFeedback) {
@@ -129,12 +290,9 @@ function triggerHaptic(type = 'impact', style = 'medium') {
         tg.HapticFeedback.notificationOccurred(style);
       }
     }
-  } catch (e) {
-    // Silently ignore outside of Telegram
-  }
+  } catch (e) {}
 }
 
-// Display visual toast alert
 function showToast(message, isSuccess = true) {
   if (!toastMessage || !toastIcon || !liveToast) return;
   toastMessage.textContent = message;
@@ -145,7 +303,7 @@ function showToast(message, isSuccess = true) {
 }
 
 // ==========================================
-// 2. Render Product Catalog
+// 3. Render Product Catalog
 // ==========================================
 function renderProducts() {
   const filtered = PRODUCTS.filter(product => {
@@ -204,10 +362,10 @@ function renderProducts() {
                   <i class="bi bi-eye me-1"></i> View Details & Quantity
                 </button>
                 <div class="d-flex gap-2">
-                  <button class="btn btn-primary btn-sm rounded-pill fw-semibold flex-grow-1 quick-buy-btn" data-id="${product.id}" title="Instant 1-Click Buy">
+                  <button class="btn btn-primary btn-sm rounded-pill fw-semibold flex-grow-1 quick-buy-btn" data-id="${product.id}" title="Buy Now">
                     <i class="bi bi-lightning-charge-fill me-1"></i> Buy Now
                   </button>
-                  <button class="btn btn-outline-secondary btn-sm rounded-pill quick-cart-btn px-3" data-id="${product.id}" title="Add 1 to Cart">
+                  <button class="btn btn-outline-secondary btn-sm rounded-pill quick-cart-btn px-3" data-id="${product.id}" title="Add to Cart">
                     <i class="bi bi-cart-plus"></i>
                   </button>
                 </div>
@@ -229,40 +387,44 @@ function renderProducts() {
     });
   });
 
-  // Direct 1-Click Buy from Card (Buys 1 item immediately)
+  // Direct Buy Button from Card
   document.querySelectorAll('.quick-buy-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-id'));
-      const product = PRODUCTS.find(p => p.id === id);
-      if (product) {
-        const purchaseItems = [{
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity: 1,
-          image: product.image
-        }];
-        executeAutoPurchase(purchaseItems, product.price);
-      }
+      requireLogin(() => {
+        const id = parseInt(btn.getAttribute('data-id'));
+        const product = PRODUCTS.find(p => p.id === id);
+        if (product) {
+          const purchaseItems = [{
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            image: product.image
+          }];
+          promptCheckoutAddress(purchaseItems, product.price);
+        }
+      });
     });
   });
 
-  // Direct 1-Click Add to Cart from Card
+  // Direct Add to Cart Button from Card
   document.querySelectorAll('.quick-cart-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-id'));
-      const product = PRODUCTS.find(p => p.id === id);
-      if (product) {
-        addToCart(product, 1);
-      }
+      requireLogin(() => {
+        const id = parseInt(btn.getAttribute('data-id'));
+        const product = PRODUCTS.find(p => p.id === id);
+        if (product) {
+          addToCart(product, 1);
+        }
+      });
     });
   });
 }
 
 // ==========================================
-// 3. Product Detail Modal & Custom Quantity
+// 4. Product Detail Modal (Fixed Contrast Specs)
 // ==========================================
 function openProductDetail(productId) {
   const product = PRODUCTS.find(p => p.id === productId);
@@ -292,11 +454,11 @@ function openProductDetail(productId) {
   modalRatingStars.innerHTML = starsHtml;
   modalRatingText.textContent = `${product.rating} (${product.reviewCount} verified reviews)`;
 
-  // Specifications
+  // Specifications with EXPLICIT high-contrast styling (fixes Telegram dark-mode white bug)
   modalSpecsList.innerHTML = product.specs.map(spec => `
-    <li>
-      <i class="bi bi-check-circle-fill text-primary"></i>
-      <span>${spec}</span>
+    <li class="d-flex align-items-start gap-2 py-1">
+      <i class="bi bi-check-circle-fill text-primary mt-1"></i>
+      <span style="color: #0f172a !important; font-weight: 600; font-size: 0.88rem;">${spec}</span>
     </li>
   `).join('');
 
@@ -312,7 +474,6 @@ function updateModalSubtotal() {
   modalSubtotal.textContent = `$${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Quantity +/- Listeners
 modalQtyMinus.addEventListener('click', () => {
   let val = parseInt(modalQuantityInput.value) || 1;
   if (val > 1) {
@@ -340,36 +501,37 @@ modalQuantityInput.addEventListener('input', () => {
   updateModalSubtotal();
 });
 
-// Add To Cart from Detail Modal
 modalAddToCartBtn.addEventListener('click', () => {
-  if (!selectedProduct) return;
-  const qty = parseInt(modalQuantityInput.value) || 1;
-  addToCart(selectedProduct, qty);
-  productDetailModal.hide();
+  requireLogin(() => {
+    if (!selectedProduct) return;
+    const qty = parseInt(modalQuantityInput.value) || 1;
+    addToCart(selectedProduct, qty);
+    productDetailModal.hide();
+  });
 });
 
-// Instant Buy from Detail Modal (Allows any amount)
 modalInstantBuyBtn.addEventListener('click', () => {
-  if (!selectedProduct) return;
-  const qty = parseInt(modalQuantityInput.value) || 1;
-  const purchaseItems = [{
-    id: selectedProduct.id,
-    name: selectedProduct.name,
-    price: selectedProduct.price,
-    quantity: qty,
-    image: selectedProduct.image
-  }];
-  const total = selectedProduct.price * qty;
+  requireLogin(() => {
+    if (!selectedProduct) return;
+    const qty = parseInt(modalQuantityInput.value) || 1;
+    const purchaseItems = [{
+      id: selectedProduct.id,
+      name: selectedProduct.name,
+      price: selectedProduct.price,
+      quantity: qty,
+      image: selectedProduct.image
+    }];
+    const total = selectedProduct.price * qty;
 
-  // Hide detail modal then show receipt modal to avoid backdrop collision
-  productDetailModal.hide();
-  setTimeout(() => {
-    executeAutoPurchase(purchaseItems, total);
-  }, 350);
+    productDetailModal.hide();
+    setTimeout(() => {
+      promptCheckoutAddress(purchaseItems, total);
+    }, 350);
+  });
 });
 
 // ==========================================
-// 4. Shopping Cart Management
+// 5. Shopping Cart Management
 // ==========================================
 function saveCart() {
   localStorage.setItem('techforge_cart', JSON.stringify(cart));
@@ -445,7 +607,6 @@ function renderCart() {
           <div class="title" title="${item.name}">${item.name}</div>
           <div class="text-primary fw-semibold small">$${item.price.toFixed(2)} each</div>
           
-          <!-- Quantity Control for any amount inside cart -->
           <div class="d-flex align-items-center gap-2 mt-2">
             <div class="input-group input-group-sm quantity-control" style="width: 130px;">
               <button class="btn btn-outline-secondary cart-qty-minus" data-index="${index}" type="button">
@@ -467,7 +628,7 @@ function renderCart() {
 
   cartTotalAmount.textContent = `$${calculateCartTotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // Quantity handlers in cart
+  // Quantity handlers
   document.querySelectorAll('.cart-qty-minus').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-index'));
@@ -518,19 +679,20 @@ function renderCart() {
   });
 }
 
-// Cart Checkout Button (Auto-purchase all items)
+// Cart Proceed to Checkout
 checkoutBtn.addEventListener('click', () => {
-  if (cart.length === 0) return;
-  const itemsToBuy = [...cart];
-  const total = calculateCartTotal();
+  requireLogin(() => {
+    if (cart.length === 0) return;
+    const itemsToBuy = [...cart];
+    const total = calculateCartTotal();
 
-  cartModal.hide();
-  setTimeout(() => {
-    executeAutoPurchase(itemsToBuy, total);
-  }, 350);
+    cartModal.hide();
+    setTimeout(() => {
+      promptCheckoutAddress(itemsToBuy, total);
+    }, 350);
+  });
 });
 
-// Clear Cart Button
 clearCartBtn.addEventListener('click', () => {
   if (confirm("Are you sure you want to clear your cart?")) {
     cart = [];
@@ -541,44 +703,149 @@ clearCartBtn.addEventListener('click', () => {
 });
 
 // ==========================================
-// 5. Simulated Auto-Purchase Execution
+// 6. Address Verification & Backend Purchase Flow
 // ==========================================
-function executeAutoPurchase(items, totalAmount) {
-  triggerHaptic('notification', 'success');
+function promptCheckoutAddress(items, totalAmount) {
+  pendingCheckoutItems = items;
+  pendingCheckoutTotal = totalAmount;
 
-  // Generate Receipt Data
-  const randomId = 'TF-' + Math.floor(100000 + Math.random() * 900000);
-  const now = new Date();
-  const timestampStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  checkoutRecipientName.value = currentUser ? (currentUser.full_name || currentUser.username) : 'Customer';
+  checkoutRecipientPhone.value = currentUser ? (currentUser.phone || '') : '';
+  checkoutRecipientAddress.value = currentUser ? (currentUser.address || '') : '';
+  checkoutAddressTotal.textContent = `$${Number(totalAmount).toFixed(2)}`;
 
-  receiptOrderId.textContent = `#${randomId}`;
-  receiptTimestamp.textContent = timestampStr;
-  receiptTotal.textContent = `$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  checkoutAddressModal.show();
+}
 
-  receiptItemsList.innerHTML = items.map(item => `
+checkoutAddressForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const phone = checkoutRecipientPhone.value.trim();
+  const shippingAddress = checkoutRecipientAddress.value.trim();
+
+  if (!shippingAddress) {
+    alert('Please enter a delivery address.');
+    return;
+  }
+
+  checkoutAddressModal.hide();
+
+  try {
+    const res = await fetch(`${API_BASE}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        shippingAddress,
+        phone,
+        items: pendingCheckoutItems,
+        totalAmount: pendingCheckoutTotal
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to place order.');
+
+    // Clear cart if purchase was from cart
+    cart = [];
+    saveCart();
+
+    // Show simulated purchase receipt
+    showReceiptModal(data.order);
+    triggerHaptic('notification', 'success');
+
+  } catch (err) {
+    alert('Purchase error: ' + err.message);
+  }
+});
+
+function showReceiptModal(order) {
+  receiptOrderId.textContent = `#${order.order_code}`;
+  receiptCustomerName.textContent = order.customer_name;
+  receiptTimestamp.textContent = new Date(order.created_at || Date.now()).toLocaleString();
+  receiptAddress.textContent = order.shipping_address;
+  receiptTotal.textContent = `$${Number(order.total_amount).toFixed(2)}`;
+
+  receiptItemsList.innerHTML = order.items.map(item => `
     <li class="d-flex justify-content-between align-items-center py-1 border-bottom">
       <span class="text-truncate me-2">
-        <strong class="text-primary">${item.quantity}x</strong> ${item.name}
+        <strong class="text-primary">${item.quantity}x</strong> ${item.name || item.product_name}
       </span>
-      <span class="fw-bold text-nowrap">$${(item.price * item.quantity).toFixed(2)}</span>
+      <span class="fw-bold text-nowrap">$${(Number(item.price) * Number(item.quantity)).toFixed(2)}</span>
     </li>
   `).join('');
 
-  // Clear cart if items were purchased
-  cart = [];
-  saveCart();
-
-  // GUARANTEED MODAL DISPLAY: Always show receipt modal directly
-  receiptModal.show();
-
-  // If inside genuine Telegram client, also trigger Telegram notification
-  if (isInsideTelegram() && tg?.showAlert) {
-    tg.showAlert(`🎉 Auto-Purchase Confirmed!\nOrder #${randomId}\nTotal: $${totalAmount.toFixed(2)}`);
-  }
+  setTimeout(() => {
+    receiptModal.show();
+  }, 350);
 }
 
 // ==========================================
-// 6. Search & Filters
+// 7. Customer Buy History (My Orders)
+// ==========================================
+viewMyOrdersNavBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  requireLogin(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/orders/my-orders`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      if (!res.ok) throw new Error('Could not load orders');
+      const data = await res.json();
+      const orders = data.orders || [];
+
+      if (orders.length === 0) {
+        myOrdersListContainer.innerHTML = `
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-bag-x fs-1 d-block mb-2"></i>
+            <h5>No Orders Yet</h5>
+            <p class="small">You haven't purchased any computer gear yet.</p>
+          </div>
+        `;
+      } else {
+        myOrdersListContainer.innerHTML = orders.map(order => {
+          const dateStr = new Date(order.created_at).toLocaleString();
+          const itemsList = order.items.map(i => `
+            <li class="d-flex justify-content-between py-1 border-bottom small">
+              <span><strong>${i.quantity}x</strong> ${i.product_name}</span>
+              <span class="text-muted">$${Number(i.subtotal || (i.price * i.quantity)).toFixed(2)}</span>
+            </li>
+          `).join('');
+
+          return `
+            <div class="card border rounded-3 mb-3 shadow-none">
+              <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <div>
+                  <span class="badge bg-dark rounded-pill">${order.order_code}</span>
+                  <span class="text-muted small ms-2">${dateStr}</span>
+                </div>
+                <span class="fs-6 fw-bold text-primary">$${Number(order.total_amount).toFixed(2)}</span>
+              </div>
+              <div class="card-body p-3">
+                <div class="small text-muted mb-2">
+                  <i class="bi bi-geo-alt text-primary me-1"></i> <strong>Shipped to:</strong> ${order.shipping_address}
+                </div>
+                <ul class="list-unstyled mb-0">
+                  ${itemsList}
+                </ul>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      myOrdersModal.show();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+});
+
+// ==========================================
+// 8. Search & Filters
 // ==========================================
 searchInput.addEventListener('input', (e) => {
   searchQuery = e.target.value;
@@ -626,22 +893,22 @@ resetFiltersBtn.addEventListener('click', () => {
 });
 
 // ==========================================
-// 7. App Initialization on DOM Ready
+// 9. App Initialization on DOM Ready
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Bootstrap Modals safely after DOM is loaded
-  cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+  // Initialize Bootstrap Modals
+  authModal = new bootstrap.Modal(document.getElementById('authModal'));
   productDetailModal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+  cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+  checkoutAddressModal = new bootstrap.Modal(document.getElementById('checkoutAddressModal'));
+  myOrdersModal = new bootstrap.Modal(document.getElementById('myOrdersModal'));
   receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
   liveToast = new bootstrap.Toast(document.getElementById('liveToast'), { delay: 3500 });
 
-  // Re-render cart whenever cart modal opens
   document.getElementById('cartModal').addEventListener('show.bs.modal', renderCart);
 
-  // Initialize Telegram
   initTelegramApp();
-
-  // Initial Render
+  checkAuthSession();
   renderProducts();
   updateCartBadge();
   updateTelegramMainButton();

@@ -26,7 +26,7 @@
 
 body {
   font-family: var(--font-family);
-  color: var(--tg-theme-text-color);
+  color: var(--text-main);
   background-color: var(--tg-theme-bg-color);
   min-height: 100vh;
   display: flex;
@@ -37,7 +37,7 @@ body {
 
 /* Glassmorphism Navbar */
 .navbar-glass {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 1020;
@@ -142,6 +142,7 @@ body {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  color: #0f172a;
 }
 
 .product-card-title {
@@ -154,7 +155,7 @@ body {
 
 .product-card-desc {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #475569 !important;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -168,32 +169,79 @@ body {
   padding-top: 0.5rem;
 }
 
-/* Modal styling */
+/* ==========================================================================
+   CRITICAL FIX: Modal Text Contrast in Telegram WebApp
+   Ensures text is NEVER washed out in Telegram dark or light mode!
+   ========================================================================== */
+.modal-content {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.modal-header, .modal-body, .modal-footer {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+#modalTitle, .modal-title {
+  color: #0f172a !important;
+}
+
+#modalDescription {
+  color: #334155 !important;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Modal image container */
 .modal-image-container {
-  min-height: 250px;
+  min-height: 200px;
+  max-height: 260px;
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .modal-product-img {
-  max-height: 280px;
+  max-height: 220px;
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 
+/* High Contrast Specs Box */
 .specs-box {
-  border: 1px solid #e2e8f0;
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.specs-box h6 {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px;
 }
 
 .specs-box li {
-  padding: 4px 0;
+  padding: 6px 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
+  color: #0f172a !important;
+}
+
+.specs-box li span {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+  font-size: 0.88rem !important;
+  line-height: 1.4;
 }
 
 .specs-box li i {
-  color: var(--primary-accent);
+  color: var(--primary-accent) !important;
+  font-size: 1rem;
+  margin-top: 2px;
 }
 
 /* Quantity Control */
@@ -205,6 +253,8 @@ body {
 
 .quantity-control input[type=number] {
   -moz-appearance: textfield;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
 }
 
 /* Cart Item Item Styling */
@@ -212,8 +262,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a !important;
 }
 
 .cart-item-row:last-child {
@@ -221,12 +272,13 @@ body {
 }
 
 .cart-item-thumb {
-  width: 58px;
-  height: 58px;
+  width: 60px;
+  height: 60px;
   border-radius: 8px;
   object-fit: cover;
   background: #f1f5f9;
   flex-shrink: 0;
+  border: 1px solid #e2e8f0;
 }
 
 .cart-item-info {
@@ -235,8 +287,9 @@ body {
 }
 
 .cart-item-info .title {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.95rem;
+  color: #0f172a !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -262,7 +315,21 @@ body {
 
 /* Receipt items styling */
 .receipt-box {
-  border: 1px dashed #cbd5e1;
+  background-color: #f8fafc !important;
+  border: 1px dashed #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.receipt-box * {
+  color: #0f172a !important;
+}
+
+.receipt-box .text-muted {
+  color: #475569 !important;
+}
+
+.receipt-box .text-primary {
+  color: var(--primary-accent) !important;
 }
 
 /* Button pulse animation */
@@ -276,9 +343,9 @@ body {
 }
 
 @keyframes badgePop {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(0, 0) scale(1.45); }
-  100% { transform: translate(0, 0) scale(1); }
+  0% { transform: scale(1); }
+  50% { transform: scale(1.45); }
+  100% { transform: scale(1); }
 }
 
 @keyframes pulseHighlight {
@@ -287,7 +354,28 @@ body {
   100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
 }
 
-/* Custom telegram main button adaptation */
+/* Admin Dashboard Specific Styles */
+.stat-card {
+  border-radius: 1rem;
+  border: 1px solid var(--card-border);
+  background: #ffffff;
+  padding: 1.25rem;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.table-custom th {
+  background-color: #f1f5f9;
+  color: #334155;
+  font-size: 0.825rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
 @media (max-width: 576px) {
   .product-card-body {
     padding: 0.85rem;

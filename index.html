@@ -26,7 +26,7 @@
   <!-- Navigation Bar -->
   <header class="navbar navbar-expand-lg sticky-top navbar-glass border-bottom py-2">
     <div class="container-fluid px-3">
-      <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="#">
+      <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="index.html">
         <div class="brand-icon d-flex align-items-center justify-content-center">
           <i class="bi bi-cpu-fill text-primary"></i>
         </div>
@@ -36,20 +36,59 @@
         </div>
       </a>
 
-      <!-- Right Actions: TG User Info & Cart Trigger -->
+      <!-- Right Navigation Actions: Auth & Cart -->
       <div class="d-flex align-items-center gap-2">
-        <div id="tg-user-pill" class="d-none align-items-center gap-1 small py-1 px-2 rounded-pill bg-light border">
-          <i class="bi bi-person-circle text-primary"></i>
-          <span id="tg-username" class="fw-semibold">User</span>
+        
+        <!-- Guest View: Sign In / Register Button -->
+        <div id="guestNavSection" class="d-flex align-items-center gap-2">
+          <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="modal" data-bs-target="#authModal">
+            <i class="bi bi-person-fill me-1"></i> Sign In
+          </button>
         </div>
 
+        <!-- Logged-in Customer View -->
+        <div id="userNavSection" class="d-none align-items-center gap-2">
+          <!-- Admin Portal Link (Only for admin1) -->
+          <a href="admin.html" id="adminPortalLink" class="btn btn-danger btn-sm rounded-pill px-3 d-none shadow-sm">
+            <i class="bi bi-shield-lock-fill me-1"></i> Admin
+          </a>
+
+          <!-- Customer Dropdown / Profile Button -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle text-primary"></i>
+              <span id="navUsername" class="fw-semibold text-dark">User</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 small">
+              <li>
+                <div class="px-3 py-1 text-muted border-bottom mb-1">
+                  Signed in as: <strong class="text-dark d-block" id="navFullName">-</strong>
+                </div>
+              </li>
+              <li>
+                <a class="dropdown-item py-2" href="#" id="viewMyOrdersNavBtn">
+                  <i class="bi bi-clock-history me-2 text-primary"></i> My Buy History
+                </a>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
+              <li>
+                <a class="dropdown-item py-2 text-danger" href="#" id="logoutBtn">
+                  <i class="bi bi-box-arrow-right me-2"></i> Log Out
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Shopping Cart Trigger Button -->
         <button class="btn btn-outline-primary position-relative d-flex align-items-center gap-2 rounded-pill px-3 py-1 shadow-sm" type="button" data-bs-toggle="modal" data-bs-target="#cartModal" aria-label="Open Shopping Cart">
           <i class="bi bi-cart3 fs-5"></i>
           <span class="d-none d-sm-inline fw-semibold">Cart</span>
-          <span id="cart-count-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+          <span id="cart-count-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
             0
           </span>
         </button>
+
       </div>
     </div>
   </header>
@@ -59,7 +98,7 @@
     <section class="text-center py-3 mb-3">
       <h1 class="display-6 fw-bold tracking-tight mb-2">Build Your Ultimate Setup</h1>
       <p class="text-muted mx-auto mb-3" style="max-width: 600px;">
-        High-performance computer components, crisp displays, and ergonomic gear. Buy in any quantity with simulated instant checkout.
+        High-performance computer components, crisp displays, and gaming peripherals. Sign in to place orders in any quantity with address verification.
       </p>
 
       <!-- Search & Filters -->
@@ -108,19 +147,23 @@
     </section>
   </main>
 
-  <!-- Product Detail Modal -->
+  <!-- ==========================================
+       MODAL: Product Detail View (FIXED CONTRAST & SCROLL)
+       ========================================== -->
   <div class="modal fade" id="productDetailModal" tabindex="-1" aria-labelledby="productDetailTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
       <div class="modal-content border-0 shadow-lg overflow-hidden rounded-4">
-        <div class="modal-header border-0 pb-0 position-relative">
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1" id="modalCategory">Category</span>
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary text-white rounded-pill px-3 py-1" id="modalCategory">Category</span>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body p-4">
           <div class="row g-4 align-items-center">
             <!-- Product Image -->
             <div class="col-12 col-md-6 text-center">
-              <div class="modal-image-container bg-light rounded-4 p-3 shadow-inner">
+              <div class="modal-image-container rounded-4 p-3 shadow-sm">
                 <img id="modalImage" src="" alt="Product Image" class="img-fluid modal-product-img rounded-3">
               </div>
             </div>
@@ -129,33 +172,37 @@
             <div class="col-12 col-md-6">
               <div class="d-flex align-items-center gap-2 mb-2">
                 <div class="text-warning small" id="modalRatingStars"></div>
-                <span class="text-muted small" id="modalRatingText">4.9 (120 reviews)</span>
+                <span class="text-muted small fw-semibold" id="modalRatingText">4.9 (120 reviews)</span>
               </div>
               <h3 class="fw-bold h4 mb-2 text-dark" id="modalTitle">Product Title</h3>
-              <div class="d-flex align-items-baseline gap-2 mb-3">
+              <div class="mb-3">
                 <span class="fs-3 fw-bold text-primary" id="modalPrice">$0.00</span>
               </div>
 
-              <p class="text-muted small mb-3" id="modalDescription">Detailed product description goes here.</p>
+              <p class="text-dark small mb-3" id="modalDescription" style="color: #334155 !important;">
+                Detailed product description.
+              </p>
 
-              <!-- Specifications List -->
-              <div class="specs-box p-3 rounded-3 bg-light mb-3">
-                <h6 class="fw-bold small text-uppercase text-muted mb-2">Key Specifications</h6>
-                <ul class="list-unstyled mb-0 small" id="modalSpecsList">
-                  <!-- Specs injected via JS -->
+              <!-- Key Specifications Box (HIGH CONTRAST) -->
+              <div class="specs-box p-3 rounded-3 mb-3">
+                <h6 class="fw-bold small text-uppercase mb-2 text-dark">
+                  <i class="bi bi-cpu me-1 text-primary"></i> Key Specifications
+                </h6>
+                <ul class="list-unstyled mb-0" id="modalSpecsList">
+                  <!-- Injected via JS -->
                 </ul>
               </div>
 
-              <!-- Quantity Selector (Allows typing any amount or clicking +/-) -->
+              <!-- Quantity Selector (Unlimited Any Amount) -->
               <div class="mb-3">
-                <label for="modalQuantityInput" class="form-label fw-semibold small text-muted">Select Quantity:</label>
-                <div class="input-group quantity-control" style="max-width: 180px;">
+                <label for="modalQuantityInput" class="form-label fw-bold small text-dark">Purchase Quantity:</label>
+                <div class="input-group quantity-control" style="max-width: 170px;">
                   <button class="btn btn-outline-secondary" type="button" id="modalQtyMinus">
-                    <i class="bi bi-dash"></i>
+                    <i class="bi bi-dash fs-6"></i>
                   </button>
                   <input type="number" id="modalQuantityInput" class="form-control text-center fw-bold" value="1" min="1">
                   <button class="btn btn-outline-secondary" type="button" id="modalQtyPlus">
-                    <i class="bi bi-plus"></i>
+                    <i class="bi bi-plus fs-6"></i>
                   </button>
                 </div>
                 <div class="form-text small">Enter any quantity you wish to purchase.</div>
@@ -163,15 +210,14 @@
 
               <!-- Subtotal Calculation -->
               <div class="d-flex justify-content-between align-items-center p-2 px-3 bg-primary-subtle rounded-3 mb-4">
-                <span class="fw-semibold text-primary">Subtotal:</span>
+                <span class="fw-bold text-primary">Subtotal:</span>
                 <span class="fs-5 fw-bold text-primary" id="modalSubtotal">$0.00</span>
               </div>
 
               <!-- Action Buttons -->
               <div class="d-grid gap-2">
-                <!-- Instant Buy Button: triggers automatic purchase directly -->
                 <button type="button" class="btn btn-primary btn-lg rounded-pill fw-semibold shadow-sm" id="modalInstantBuyBtn">
-                  <i class="bi bi-lightning-charge-fill me-1"></i> Instant Buy (Test Auto-Purchase)
+                  <i class="bi bi-lightning-charge-fill me-1"></i> Instant Buy with Address
                 </button>
                 <button type="button" class="btn btn-outline-secondary rounded-pill fw-semibold" id="modalAddToCartBtn">
                   <i class="bi bi-cart-plus me-1"></i> Add to Cart
@@ -185,43 +231,38 @@
     </div>
   </div>
 
-  <!-- Shopping Cart Offcanvas / Modal -->
+  <!-- ==========================================
+       MODAL: Shopping Cart
+       ========================================== -->
   <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content border-0 shadow-lg rounded-4">
         <div class="modal-header border-bottom">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-bag-check-fill text-primary fs-4"></i>
-            <h5 class="modal-title fw-bold mb-0" id="cartModalLabel">Shopping Cart</h5>
+            <h5 class="modal-title fw-bold mb-0 text-dark" id="cartModalLabel">Shopping Cart</h5>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body p-3">
-          <!-- Cart Items Container -->
-          <div id="cartItemsContainer">
-            <!-- Dynamically populated -->
-          </div>
+          <div id="cartItemsContainer"></div>
 
           <!-- Empty Cart State -->
           <div id="emptyCartView" class="text-center py-5 d-none">
             <div class="display-3 text-muted mb-2"><i class="bi bi-cart-x"></i></div>
-            <h5 class="fw-bold">Your cart is empty</h5>
+            <h5 class="fw-bold text-dark">Your cart is empty</h5>
             <p class="text-muted small">Browse through our PC components and pick what you need!</p>
           </div>
         </div>
         
-        <!-- Cart Footer -->
         <div class="modal-footer border-top d-flex flex-column gap-2" id="cartFooter">
           <div class="w-100 d-flex justify-content-between align-items-center">
             <span class="text-muted fw-semibold">Total Amount:</span>
             <span class="fs-4 fw-bold text-primary" id="cartTotalAmount">$0.00</span>
           </div>
-          <div class="w-100 small text-muted text-center">
-            <i class="bi bi-info-circle text-primary me-1"></i> Assignment Mode: Clicking Checkout will auto-complete payment.
-          </div>
           <div class="w-100 d-grid gap-2">
             <button type="button" class="btn btn-primary btn-lg rounded-pill fw-semibold shadow-sm" id="checkoutBtn">
-              <i class="bi bi-bag-check me-1"></i> Auto-Buy All Cart Items
+              <i class="bi bi-bag-check me-1"></i> Proceed to Checkout
             </button>
             <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" id="clearCartBtn">
               <i class="bi bi-trash3 me-1"></i> Clear Cart
@@ -232,7 +273,176 @@
     </div>
   </div>
 
-  <!-- Order Receipt / Purchase Success Modal -->
+  <!-- ==========================================
+       MODAL: Customer Auth (Login & Sign Up)
+       ========================================== -->
+  <div class="modal fade" id="authModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-header border-bottom pb-2">
+          <ul class="nav nav-pills w-100 nav-justified" id="authTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active rounded-pill fw-semibold" id="login-tab" data-bs-toggle="pill" data-bs-target="#loginTabPane" type="button" role="tab">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link rounded-pill fw-semibold" id="signup-tab" data-bs-toggle="pill" data-bs-target="#signupTabPane" type="button" role="tab">
+                <i class="bi bi-person-plus me-1"></i> Create Account
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div class="modal-body p-4">
+          
+          <div id="authAlert" class="alert alert-danger py-2 px-3 small rounded-3 d-none"></div>
+
+          <div class="tab-content" id="authTabContent">
+            
+            <!-- Login Tab -->
+            <div class="tab-pane fade show active" id="loginTabPane" role="tabpanel">
+              <form id="loginForm">
+                <div class="mb-3">
+                  <label for="loginUsername" class="form-label small fw-semibold">Username</label>
+                  <input type="text" class="form-control rounded-3" id="loginUsername" placeholder="e.g. johndoe" required>
+                </div>
+                <div class="mb-4">
+                  <label for="loginPassword" class="form-label small fw-semibold">Password</label>
+                  <input type="password" class="form-control rounded-3" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-semibold shadow-sm">
+                  Sign In
+                </button>
+              </form>
+              <div class="mt-3 text-center small text-muted">
+                Admin account? Use <code>admin1</code> / <code>admin-1</code> or visit <a href="admin.html" class="fw-semibold">Admin Portal</a>.
+              </div>
+            </div>
+
+            <!-- Sign Up Tab -->
+            <div class="tab-pane fade" id="signupTabPane" role="tabpanel">
+              <form id="signupForm">
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label for="signupFullName" class="form-label small fw-semibold">Full Name *</label>
+                    <input type="text" class="form-control form-control-sm rounded-3" id="signupFullName" placeholder="John Doe" required>
+                  </div>
+                  <div class="col-6">
+                    <label for="signupUsername" class="form-label small fw-semibold">Username *</label>
+                    <input type="text" class="form-control form-control-sm rounded-3" id="signupUsername" placeholder="johndoe" required>
+                  </div>
+                </div>
+
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label for="signupEmail" class="form-label small fw-semibold">Email</label>
+                    <input type="email" class="form-control form-control-sm rounded-3" id="signupEmail" placeholder="john@example.com">
+                  </div>
+                  <div class="col-6">
+                    <label for="signupPhone" class="form-label small fw-semibold">Phone Number</label>
+                    <input type="tel" class="form-control form-control-sm rounded-3" id="signupPhone" placeholder="+1 234 567 890">
+                  </div>
+                </div>
+
+                <div class="mb-2">
+                  <label for="signupAddress" class="form-label small fw-semibold">Delivery Address *</label>
+                  <textarea class="form-control form-control-sm rounded-3" id="signupAddress" rows="2" placeholder="Street, Building, City, Postal Code" required></textarea>
+                </div>
+
+                <div class="mb-3">
+                  <label for="signupPassword" class="form-label small fw-semibold">Password (min 4 characters) *</label>
+                  <input type="password" class="form-control form-control-sm rounded-3" id="signupPassword" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 rounded-pill py-2 fw-semibold shadow-sm">
+                  Register Account
+                </button>
+              </form>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: Checkout Address Confirmation
+       ========================================== -->
+  <div class="modal fade" id="checkoutAddressModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-header border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-geo-alt-fill text-primary fs-4"></i>
+            <h5 class="modal-title fw-bold text-dark mb-0">Delivery Address</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-primary py-2 px-3 small rounded-3 mb-3">
+            <i class="bi bi-info-circle me-1"></i> Please verify your shipping address before placing this order.
+          </div>
+
+          <form id="checkoutAddressForm">
+            <div class="mb-3">
+              <label for="checkoutRecipientName" class="form-label small fw-semibold">Recipient Name</label>
+              <input type="text" class="form-control rounded-3" id="checkoutRecipientName" readonly>
+            </div>
+            <div class="mb-3">
+              <label for="checkoutRecipientPhone" class="form-label small fw-semibold">Contact Phone Number *</label>
+              <input type="tel" class="form-control rounded-3" id="checkoutRecipientPhone" placeholder="Enter your contact number" required>
+            </div>
+            <div class="mb-3">
+              <label for="checkoutRecipientAddress" class="form-label small fw-semibold">Complete Delivery Address *</label>
+              <textarea class="form-control rounded-3" id="checkoutRecipientAddress" rows="3" placeholder="Enter street address, building/apt, city, postal code" required></textarea>
+            </div>
+
+            <!-- Order Total Recap -->
+            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 mb-3 border">
+              <div>
+                <span class="small text-muted d-block">Order Total:</span>
+                <span class="fw-bold fs-5 text-primary" id="checkoutAddressTotal">$0.00</span>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                Simulated Instant Payment
+              </span>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-semibold shadow-sm" id="confirmOrderBtn">
+              <i class="bi bi-check2-circle me-1"></i> Confirm & Complete Purchase
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: Customer Purchase History (My Orders)
+       ========================================== -->
+  <div class="modal fade" id="myOrdersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-header border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-primary fs-4"></i>
+            <h5 class="modal-title fw-bold text-dark mb-0">My Purchase History</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="myOrdersListContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: Order Receipt / Purchase Success
+       ========================================== -->
   <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg rounded-4 text-center p-4">
@@ -243,18 +453,26 @@
             </div>
           </div>
         </div>
-        <h4 class="fw-bold mb-1">Purchase Successful!</h4>
-        <p class="text-muted small mb-3">Auto-Purchase confirmed for assignment testing.</p>
+        <h4 class="fw-bold mb-1 text-dark">Purchase Successful!</h4>
+        <p class="text-muted small mb-3">Order saved to PostgreSQL & Telegram Admin notified!</p>
 
         <!-- Receipt Box -->
-        <div class="receipt-box text-start bg-light rounded-3 p-3 mb-3 small">
+        <div class="receipt-box text-start rounded-3 p-3 mb-3 small">
           <div class="d-flex justify-content-between mb-1">
             <span class="text-muted">Order ID:</span>
             <span class="fw-bold" id="receiptOrderId">#TF-98421</span>
           </div>
           <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Customer:</span>
+            <span class="fw-semibold" id="receiptCustomerName">-</span>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
             <span class="text-muted">Date & Time:</span>
             <span class="fw-semibold" id="receiptTimestamp">-</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Shipping Address:</span>
+            <span class="fw-semibold text-end" id="receiptAddress">-</span>
           </div>
           <div class="d-flex justify-content-between mb-2">
             <span class="text-muted">Payment Status:</span>
@@ -262,9 +480,7 @@
           </div>
           <hr class="my-2">
           <div class="fw-semibold mb-2">Purchased Items:</div>
-          <ul class="list-unstyled mb-2" id="receiptItemsList">
-            <!-- Populated via JS -->
-          </ul>
+          <ul class="list-unstyled mb-2" id="receiptItemsList"></ul>
           <hr class="my-2">
           <div class="d-flex justify-content-between fs-6 fw-bold">
             <span>Total Paid:</span>
@@ -279,7 +495,7 @@
     </div>
   </div>
 
-  <!-- Toast Notification Container (Top Center for high mobile/Telegram visibility) -->
+  <!-- Toast Notification Container (Top Center) -->
   <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1100;">
     <div id="liveToast" class="toast align-items-center text-bg-dark border-0 rounded-pill shadow-lg px-2" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
@@ -299,8 +515,10 @@
         <i class="bi bi-cpu-fill text-primary"></i>
         <strong class="text-dark">TechForge Mini App</strong>
       </div>
-      <p class="mb-1">Enterprise Applications Development Assignment Prototype</p>
-      <p class="mb-0 text-secondary">&copy; 2026 TechForge. Simulated Checkout Enabled for Telegram WebApp.</p>
+      <p class="mb-1">Enterprise Applications Development &copy; 2026</p>
+      <div class="d-flex justify-content-center gap-3">
+        <a href="admin.html" class="text-muted text-decoration-none"><i class="bi bi-shield-lock me-1"></i> Admin Portal</a>
+      </div>
     </div>
   </footer>
 
