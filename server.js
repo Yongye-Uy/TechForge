@@ -271,21 +271,33 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ==========================================
-// Start Server
-// ==========================================
-async function startServer() {
-  await db.initDB();
+let dbInitialized = false;
 
-  // If not running as a Vercel serverless function
-  if (process.env.VERCEL !== '1') {
-    app.listen(PORT, () => {
-      console.log(`🚀 TechForge Store running at http://localhost:${PORT}`);
-      console.log(`👑 Default Admin: admin1 / admin-1`);
-    });
+// Middleware to ensure DB connection on serverless API calls
+app.use(async (req, res, next) => {
+  if (!dbInitialized && process.env.DATABASE_URL) {
+    try {
+      await db.initDB();
+      dbInitialized = true;
+    } catch (err) {
+      console.warn('DB initialization deferred:', err.message);
+    }
   }
-}
+  next();
+});
 
-startServer();
+// Start Server locally
+if (process.env.VERCEL !== '1') {
+  db.initDB().then(() => {
+    dbInitialized = true;
+  }).catch((e) => {
+    console.warn('Initial local DB connection note:', e.message);
+  });
+
+  app.listen(PORT, () => {
+    console.log(`🚀 TechForge Store running at http://localhost:${PORT}`);
+    console.log(`👑 Default Admin: admin1 / admin-1`);
+  });
+}
 
 module.exports = app;
