@@ -47,7 +47,6 @@ const modalImage = document.getElementById('modalImage');
 const modalCategory = document.getElementById('modalCategory');
 const modalTitle = document.getElementById('modalTitle');
 const modalPrice = document.getElementById('modalPrice');
-const modalStock = document.getElementById('modalStock');
 const modalDescription = document.getElementById('modalDescription');
 const modalSpecsList = document.getElementById('modalSpecsList');
 const modalRatingStars = document.getElementById('modalRatingStars');
@@ -64,7 +63,7 @@ const cartItemsContainer = document.getElementById('cartItemsContainer');
 const emptyCartView = document.getElementById('emptyCartView');
 const cartFooter = document.getElementById('cartFooter');
 const cartTotalAmount = document.getElementById('cartTotalAmount');
-const cartCountBadge = document.getElementById('cartCountBadge');
+const cartCountBadge = document.getElementById('cart-count-badge');
 const checkoutBtn = document.getElementById('checkoutBtn');
 const clearCartBtn = document.getElementById('clearCartBtn');
 
@@ -195,14 +194,9 @@ function renderProducts() {
             <p class="product-card-desc">${product.description}</p>
             
             <div class="product-card-footer">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <span class="text-muted small d-block">Price</span>
-                  <span class="fs-5 fw-bold text-primary">$${product.price.toFixed(2)}</span>
-                </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
-                  In Stock (${product.stock})
-                </span>
+              <div class="mb-3">
+                <span class="text-muted small d-block">Price</span>
+                <span class="fs-4 fw-bold text-primary">$${product.price.toFixed(2)}</span>
               </div>
               
               <div class="d-grid gap-2">
@@ -282,7 +276,6 @@ function openProductDetail(productId) {
   modalTitle.textContent = product.name;
   modalCategory.textContent = product.categoryLabel;
   modalPrice.textContent = `$${product.price.toFixed(2)}`;
-  modalStock.textContent = `In Stock (${product.stock} available)`;
   modalDescription.textContent = product.description;
   modalImage.src = product.image;
   modalImage.alt = product.name;
@@ -385,13 +378,16 @@ function saveCart() {
 }
 
 function updateCartBadge() {
-  if (!cartCountBadge) return;
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  cartCountBadge.textContent = totalItems;
+  const badge = document.getElementById('cart-count-badge');
+  if (!badge) return;
+  const totalItems = cart.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+  badge.textContent = totalItems;
   if (totalItems > 0) {
-    cartCountBadge.classList.remove('d-none');
+    badge.classList.remove('d-none');
+    badge.classList.add('badge-pop');
+    setTimeout(() => badge.classList.remove('badge-pop'), 400);
   } else {
-    cartCountBadge.classList.add('d-none');
+    badge.classList.add('d-none');
   }
 }
 
@@ -411,22 +407,23 @@ function updateTelegramMainButton() {
 }
 
 function addToCart(product, quantity = 1) {
+  const qty = Math.max(1, parseInt(quantity) || 1);
   const existing = cart.find(item => item.id === product.id);
   if (existing) {
-    existing.quantity += quantity;
+    existing.quantity = (parseInt(existing.quantity) || 0) + qty;
   } else {
     cart.push({
       id: product.id,
       name: product.name,
       price: product.price,
-      quantity: quantity,
+      quantity: qty,
       image: product.image
     });
   }
 
   saveCart();
   triggerHaptic('notification', 'success');
-  showToast(`Added ${quantity}x "${product.name}" to cart! Click Cart to view.`);
+  showToast(`Added ${qty}x "${product.name}" to cart!`);
 }
 
 function renderCart() {
