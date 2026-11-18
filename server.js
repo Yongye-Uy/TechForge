@@ -186,10 +186,10 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
 // Place a new order (requires authentication and shipping address)
 app.post('/api/orders', authenticateToken, async (req, res) => {
   try {
-    const { shippingAddress, phone, items, totalAmount } = req.body;
+    const { shippingAddress, phone, recipientName, items, totalAmount } = req.body;
 
-    if (!shippingAddress || shippingAddress.trim().length < 5) {
-      return res.status(400).json({ error: 'A valid shipping address is required.' });
+    if (!shippingAddress || !shippingAddress.trim()) {
+      return res.status(400).json({ error: 'Please enter a delivery address.' });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -198,7 +198,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 
     // Retrieve user details
     const user = await db.findUserById(req.user.id);
-    const customerName = user ? user.full_name : req.user.fullName || req.user.username;
+    const customerName = (recipientName && recipientName.trim()) || (user ? user.full_name : req.user.fullName || req.user.username);
     const customerEmail = user ? user.email : '';
     const customerPhone = phone || (user ? user.phone : '');
 

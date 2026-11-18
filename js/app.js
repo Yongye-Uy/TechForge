@@ -724,6 +724,7 @@ function promptCheckoutAddress(items, totalAmount) {
 checkoutAddressForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
+  const recipientName = checkoutRecipientName.value.trim();
   const phone = checkoutRecipientPhone.value.trim();
   const shippingAddress = checkoutRecipientAddress.value.trim();
 
@@ -742,6 +743,7 @@ checkoutAddressForm.addEventListener('submit', async (e) => {
         'Authorization': `Bearer ${authToken}`
       },
       body: JSON.stringify({
+        recipientName,
         shippingAddress,
         phone,
         items: pendingCheckoutItems,

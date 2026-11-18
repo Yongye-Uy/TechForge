@@ -383,16 +383,16 @@
 
           <form id="checkoutAddressForm">
             <div class="mb-3">
-              <label for="checkoutRecipientName" class="form-label small fw-semibold">Recipient Name</label>
-              <input type="text" class="form-control rounded-3" id="checkoutRecipientName" readonly>
+              <label for="checkoutRecipientName" class="form-label small fw-semibold">Recipient Name *</label>
+              <input type="text" class="form-control rounded-3" id="checkoutRecipientName" placeholder="Recipient Name" required>
             </div>
             <div class="mb-3">
               <label for="checkoutRecipientPhone" class="form-label small fw-semibold">Contact Phone Number *</label>
-              <input type="tel" class="form-control rounded-3" id="checkoutRecipientPhone" placeholder="Enter your contact number" required>
+              <input type="tel" class="form-control rounded-3" id="checkoutRecipientPhone" placeholder="Enter contact phone number" required>
             </div>
             <div class="mb-3">
               <label for="checkoutRecipientAddress" class="form-label small fw-semibold">Complete Delivery Address *</label>
-              <textarea class="form-control rounded-3" id="checkoutRecipientAddress" rows="3" placeholder="Enter street address, building/apt, city, postal code" required></textarea>
+              <textarea class="form-control rounded-3" id="checkoutRecipientAddress" rows="3" placeholder="Enter delivery address (e.g. Street, City)" required></textarea>
             </div>
 
             <!-- Order Total Recap -->
