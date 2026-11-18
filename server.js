@@ -266,7 +266,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    database: db.isPostgres() ? 'PostgreSQL' : 'Local Fallback',
+    database: 'PostgreSQL (Supabase)',
     timestamp: new Date().toISOString()
   });
 });

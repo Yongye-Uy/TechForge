@@ -1,155 +1,105 @@
-# ⚡ TechForge - Full-Stack E-Commerce & Telegram Mini App
+# ⚡ TechForge - PostgreSQL (Supabase) & Telegram Mini App Store
 
-**TechForge** is an enterprise-grade computer hardware store built with a **Node.js/Express & PostgreSQL** backend, responsive **Bootstrap 5 & Vanilla JS** frontend, and native **Telegram Mini App (TMA)** integration.
-
----
-
-## 🌟 Full-Stack Features
-
-1. **Database (PostgreSQL / pgsql)**:
-   - Relational PostgreSQL database using `pg` driver with auto-initializing schema ([schema.sql](file:///c:/Year4/CS%20491%20-%20Introduction%20to%20Enterprise%20Applications%20Development/schema.sql)).
-   - Tables: `users`, `orders`, and `order_items`.
-   - Built-in local fallback store for seamless offline/local grading before a remote PostgreSQL database is configured.
-
-2. **Authentication (Sign Up / Log In / Log Out)**:
-   - Secure password hashing with `bcryptjs` and session management via JWT.
-   - Customers must have an account to purchase products.
-   - Profile management with persistent login state.
-
-3. **Admin Dashboard & Default Admin Account**:
-   - Access URL: `/admin.html`
-   - **Default Admin Credentials:**
-     - **Username:** `admin1`
-     - **Password:** `admin-1`
-   - **Admin Capabilities:**
-     - **Overview KPIs:** Real-time revenue, total orders, customer count, and database status.
-     - **Customer List:** View all registered customers, email, phone, registered address, total orders, and total spent.
-     - **Customer Details:** Click any customer to inspect their full profile and every product they have ever purchased.
-     - **All Orders:** Inspect every order receipt and breakdown (no delivery processing required).
-
-4. **Address Verification & Purchase Flow**:
-   - Customers must verify or enter their shipping address and phone number before placing an order.
-   - Buy any custom quantity (unlimited stock).
-   - Generates simulated order receipts with random Order Codes (`#TF-XXXXXX`).
-
-5. **Customer Buy History**:
-   - Customers can view their past orders, items purchased, and delivery addresses directly from the "My Buy History" menu.
-
-6. **Telegram Admin Bot Notifications**:
-   - When any customer places an order, the backend automatically dispatches a real-time Telegram alert to the store administrator via Telegram Bot API with the customer's name, phone, shipping address, item breakdown, and total.
-
-7. **Telegram Mini App Contrast Fix**:
-   - Solved the Telegram dark mode bug where specification bullet points appeared as white text on a light background.
-   - High-contrast typography and fluid scrolling across mobile and desktop.
+**TechForge** is a full-stack e-commerce store with a **Node.js/Express & pure PostgreSQL (Supabase)** backend, responsive **Bootstrap 5 & Vanilla JS** frontend, and native **Telegram Mini App** integration.
 
 ---
 
-## 📂 Project Structure
+## 🗄️ Database Setup with Supabase (PostgreSQL)
 
-```text
-├── server.js           # Express API server & static asset host
-├── db.js               # PostgreSQL connection, auto-migrations & models
-├── telegram.js         # Telegram Bot notification dispatcher
-├── schema.sql          # PostgreSQL DDL script
-├── .env.example        # Environment variable template
-├── api/
-│   └── index.js        # Vercel serverless function entrypoint
-├── index.html          # Storefront, customer auth, cart & checkout modals
-├── admin.html          # Administrator portal for customers and orders
-├── css/
-│   └── style.css       # Custom styling & Telegram dark/light contrast rules
-├── js/
-│   ├── products.js     # Catalog of 10 computer hardware components
-│   ├── app.js          # Storefront logic, auth glue & checkout handlers
-│   └── admin.js        # Admin dashboard analytics & order inspectors
-├── vercel.json         # Vercel routing and Telegram iframe security headers
-└── README.md           # Documentation
-```
+You can connect your Supabase database in 3 simple steps:
+
+### Step 1: Get your Supabase Connection String
+1. Log in to [Supabase](https://supabase.com) and create or open your project.
+2. In the left sidebar, click **Project Settings** (gear icon) -> **Database**.
+3. Scroll down to **Connection string** and click the **URI** tab.
+4. Copy the connection string. It will look like this:
+   ```text
+   postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+   ```
+   *(Or direct: `postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres`)*
+5. Replace `[YOUR-PASSWORD]` with the database password you created when starting your Supabase project.
+
+### Step 2: Set your `DATABASE_URL`
+* **For Local Testing:**
+  Create a `.env` file in the root folder (or copy `.env.example`):
+  ```bash
+  cp .env.example .env
+  ```
+  Paste your connection string into `.env`:
+  ```env
+  DATABASE_URL=postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+  ```
+
+* **For Vercel Deployment:**
+  In your Vercel project dashboard, go to **Settings** -> **Environment Variables**, and add `DATABASE_URL` with your Supabase URI string.
+
+### Step 3: Run the Schema
+You can initialize the tables in either of two ways:
+* **Option A (Automatic):** Just start the server (`npm start`). It will automatically connect to Supabase, run `CREATE TABLE IF NOT EXISTS`, and seed the default admin account (`admin1` / `admin-1`).
+* **Option B (Supabase SQL Editor):** In your Supabase dashboard, click **SQL Editor** -> **New query** -> paste the entire contents of [schema.sql](file:///c:/Year4/CS%20491%20-%20Introduction%20to%20Enterprise%20Applications%20Development/schema.sql) -> click **Run**.
 
 ---
 
 ## 🚀 How to Run Locally
 
-1. **Install Dependencies**:
+1. **Install Dependencies:**
    ```bash
    npm install
    ```
 
-2. **Start the Application**:
+2. **Start the Application:**
    ```bash
    npm start
    ```
    The application will start on [http://localhost:3000](http://localhost:3000).
 
-3. **Log In to Test**:
-   - **Storefront:** [http://localhost:3000](http://localhost:3000)
-     - Click **Sign In** -> **Create Account** to register a customer account.
-     - Select a computer component, choose any quantity, and click **Buy Now**.
-     - Enter your shipping address and confirm your purchase.
-   - **Admin Portal:** [http://localhost:3000/admin.html](http://localhost:3000/admin.html)
-     - Username: `admin1`
-     - Password: `admin-1`
-     - View the customer you registered, their address, and what they bought!
+---
+
+## 👤 User Roles & Workflows
+
+### 🛒 Customer Workflow:
+1. Open the storefront at [http://localhost:3000](http://localhost:3000).
+2. Click **Sign In** -> **Create Account** to register (Full Name, Username, Email, Phone, Delivery Address, Password).
+3. Browse products, open product details (with high-contrast specifications), choose any quantity, and click **Instant Buy** or **Add to Cart**.
+4. Confirm your delivery address in the address prompt modal to complete the simulated purchase.
+5. In the top navbar, open the user dropdown and click **My Buy History** to review your past orders recorded in Supabase.
+
+### 👑 Admin Workflow:
+1. Go to [http://localhost:3000/admin.html](http://localhost:3000/admin.html).
+2. Sign in with the default admin account:
+   - **Username:** `admin1`
+   - **Password:** `admin-1`
+3. In the **Customer List**, click **Details** next to any customer to inspect their profile and every product they have ever purchased.
+4. In the **Orders History** tab, inspect all customer purchase orders and shipping addresses.
+5. Click **Logout** to cleanly end the session.
 
 ---
 
-## 🐘 Configuring PostgreSQL (`DATABASE_URL`)
+## 🤖 Real-Time Telegram Admin Alerts (Optional)
 
-To connect your own PostgreSQL database (e.g. from [Neon.tech](https://neon.tech), [Supabase](https://supabase.com), [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), or local PostgreSQL):
+Whenever a customer buys products, your Telegram bot will instantly notify the admin:
 
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Set your PostgreSQL connection string:
-   ```env
-   DATABASE_URL=postgresql://username:password@ep-example.neon.tech/neondb?sslmode=require
-   ```
-3. When you run `npm start`, the app automatically connects to PostgreSQL and creates the `users`, `orders`, and `order_items` tables with the default admin `admin1` / `admin-1`!
-
----
-
-## 🤖 Configuring Telegram Admin Notifications
-
-To receive real-time Telegram messages when an order is made:
-
-1. Open Telegram and search for [@BotFather](https://t.me/BotFather).
-2. Create a bot using `/newbot` and copy your **Bot Token**.
-3. Find your personal Telegram Chat ID:
-   - Message [@userinfobot](https://t.me/userinfobot) or [@raw_data_bot](https://t.me/raw_data_bot) and copy the `Id` number (e.g. `123456789`).
-4. Add these into your `.env` or Vercel Environment Variables:
+1. Create a bot with [@BotFather](https://t.me/BotFather) and copy your **Bot Token**.
+2. Message [@userinfobot](https://t.me/userinfobot) to get your personal Telegram **Chat ID**.
+3. Add them to your `.env` or Vercel Environment Variables:
    ```env
    TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
    TELEGRAM_ADMIN_CHAT_ID=123456789
    ```
-Whenever any customer places an order, your Telegram bot will instantly message you:
-```text
-🛍️ NEW ORDER RECEIVED!
-📦 Order Code: #TF-492465
-👤 Customer: Jane Customer (@janecust)
-📞 Phone: 123-456-7890
-📍 Shipping Address: 742 Evergreen Terrace
-🛒 Items Bought:
-• 1x ApexPro RGB Mechanical Keyboard ($129.99)
-• 1x ViperStrike Wireless Gaming Mouse ($69.99)
-💰 Total Amount: $199.98
-```
 
 ---
 
 ## ☁️ Deploying to Vercel
 
-1. Commit and push your code to your GitHub repository:
+1. Push your changes to GitHub:
    ```bash
    git add .
-   git commit -m "Full-stack store with PostgreSQL, Admin portal, and Telegram notifications"
+   git commit -m "Pure PostgreSQL with Supabase integration"
    git push origin main
    ```
-2. In [Vercel](https://vercel.com):
-   - Import your GitHub repo.
-   - In **Settings** -> **Environment Variables**, you can optionally add:
-     - `DATABASE_URL`: Your PostgreSQL connection string.
-     - `JWT_SECRET`: Any random string (e.g., `my_secret_key_123`).
-     - `TELEGRAM_BOT_TOKEN`: Your Telegram Bot Token.
-     - `TELEGRAM_ADMIN_CHAT_ID`: Your Telegram Admin User Chat ID.
-3. Click **Deploy**. Vercel will host both your frontend and your Node.js serverless API routes on your HTTPS URL!
+2. In your [Vercel](https://vercel.com) Project Settings -> **Environment Variables**, add:
+   - `DATABASE_URL`: Your Supabase connection URI.
+   - `JWT_SECRET`: Any secret string (e.g., `techforge_jwt_2026`).
+   - `TELEGRAM_BOT_TOKEN` *(optional)*.
+   - `TELEGRAM_ADMIN_CHAT_ID` *(optional)*.
+3. Click **Redeploy**. Vercel will host your static frontend and Node.js PostgreSQL API routes.
