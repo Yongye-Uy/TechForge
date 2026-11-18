@@ -22,6 +22,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'techforge-super-secret-key-2026';
 app.use(cors());
 app.use(express.json());
 
+let dbInitialized = false;
+
+// Middleware: Ensure PostgreSQL tables exist before processing API requests
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api') && !dbInitialized) {
+    if (process.env.DATABASE_URL) {
+      try {
+        await db.initDB();
+        dbInitialized = true;
+      } catch (err) {
+        console.error('Database connection / init error:', err.message);
+      }
+    }
+  }
+  next();
+});
+
 // Serve static frontend files
 app.use(express.static(path.join(__dirname)));
 
@@ -96,7 +113,7 @@ app.post('/api/auth/signup', async (req, res) => {
     });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ error: 'Internal server error during registration.' });
+    res.status(500).json({ error: err.message || 'Database error during registration.' });
   }
 });
 
@@ -134,7 +151,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error during login.' });
+    res.status(500).json({ error: err.message || 'Database error during login.' });
   }
 });
 
@@ -262,28 +279,29 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    database: 'PostgreSQL (Supabase)',
-    timestamp: new Date().toISOString()
-  });
-});
-
-let dbInitialized = false;
-
-// Middleware to ensure DB connection on serverless API calls
-app.use(async (req, res, next) => {
-  if (!dbInitialized && process.env.DATABASE_URL) {
-    try {
-      await db.initDB();
-      dbInitialized = true;
-    } catch (err) {
-      console.warn('DB initialization deferred:', err.message);
-    }
+// Health check endpoint (Live connection diagnostics)
+app.get('/api/health', async (req, res) => {
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({
+      status: 'error',
+      message: 'DATABASE_URL is not set in Vercel Environment Variables.'
+    });
   }
-  next();
+
+  try {
+    const client = db.getPool();
+    await client.query('SELECT 1');
+    res.json({
+      status: 'ok',
+      database: 'Connected to PostgreSQL (Supabase)',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: `Database connection failed: ${err.message}`
+    });
+  }
 });
 
 // Start Server locally

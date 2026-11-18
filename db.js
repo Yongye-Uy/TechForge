@@ -24,7 +24,8 @@ function getPool() {
       connectionString: process.env.DATABASE_URL,
       ssl: {
         rejectUnauthorized: false
-      }
+      },
+      connectionTimeoutMillis: 7000
     });
 
     pool.on('error', (err) => {
@@ -282,6 +283,7 @@ async function getAllOrders() {
 }
 
 module.exports = {
+  getPool,
   initDB,
   findUserByUsername,
   findUserById,
