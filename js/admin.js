@@ -22,7 +22,6 @@ const adminLogoutBtn = document.getElementById('adminLogoutBtn');
 const statTotalRevenue = document.getElementById('statTotalRevenue');
 const statTotalOrders = document.getElementById('statTotalOrders');
 const statTotalCustomers = document.getElementById('statTotalCustomers');
-const statDbStatus = document.getElementById('statDbStatus');
 const customerCountBadge = document.getElementById('customerCountBadge');
 const ordersCountBadge = document.getElementById('ordersCountBadge');
 const customersTableBody = document.getElementById('customersTableBody');
@@ -135,32 +134,24 @@ adminLoginForm.addEventListener('submit', async (e) => {
   }
 });
 
-adminLogoutBtn.addEventListener('click', () => {
+adminLogoutBtn.addEventListener('click', (e) => {
+  e.preventDefault();
   adminToken = null;
   adminUser = null;
   localStorage.removeItem('techforge_admin_token');
+  localStorage.removeItem('techforge_token');
+  if (adminLoginForm) adminLoginForm.reset();
   showLoginView();
+  // Ensure complete fresh state
+  window.location.reload();
 });
 
 // ==========================================
 // 2. Load Dashboard Statistics & Data
 // ==========================================
 async function loadDashboardData() {
-  loadHealth();
   loadCustomers();
   loadOrders();
-}
-
-async function loadHealth() {
-  try {
-    const res = await fetch(`${API_BASE}/health`);
-    if (res.ok) {
-      const data = await res.json();
-      statDbStatus.textContent = data.database;
-    }
-  } catch (e) {
-    statDbStatus.textContent = 'PostgreSQL';
-  }
 }
 
 async function loadCustomers() {

@@ -10,8 +10,42 @@
       "phone": "000-000-0000",
       "address": "TechForge HQ",
       "created_at": "2026-11-18T14:03:05.011Z"
+    },
+    {
+      "id": 2,
+      "username": "doe",
+      "password_hash": "$2a$10$cu7BgLMJPJzETnzH8IZ/5O3PEQtGWR7jmB3WJy2GbSibijvlJl9iy",
+      "role": "customer",
+      "full_name": "John",
+      "email": "john@example.com",
+      "phone": "+85512345678",
+      "address": "phnom penh",
+      "created_at": "2026-11-18T14:23:39.647Z"
     }
   ],
-  "orders": [],
-  "order_items": []
+  "orders": [
+    {
+      "id": 1,
+      "order_code": "TF-824035",
+      "user_id": 2,
+      "customer_name": "John",
+      "customer_email": "john@example.com",
+      "customer_phone": "+85512345678",
+      "shipping_address": "phnom penh",
+      "total_amount": 349.99,
+      "payment_status": "PAID (Simulated)",
+      "created_at": "2026-11-18T14:25:47.379Z"
+    }
+  ],
+  "order_items": [
+    {
+      "id": 1,
+      "order_id": 1,
+      "product_id": 3,
+      "product_name": "UltraView 27\" 4K IPS Gaming Monitor",
+      "price": 349.99,
+      "quantity": 1,
+      "subtotal": 349.99
+    }
+  ]
 }

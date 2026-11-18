@@ -187,6 +187,8 @@ loginForm.addEventListener('submit', async (e) => {
     }
 
     updateAuthUI(currentUser);
+    loginForm.reset();
+    signupForm.reset();
     authModal.hide();
     showToast(`Welcome back, ${currentUser.full_name || currentUser.username}!`);
   } catch (err) {
@@ -222,6 +224,8 @@ signupForm.addEventListener('submit', async (e) => {
     localStorage.setItem('techforge_token', authToken);
 
     updateAuthUI(currentUser);
+    signupForm.reset();
+    loginForm.reset();
     authModal.hide();
     showToast(`Account created! Welcome to TechForge, ${currentUser.full_name}!`);
   } catch (err) {
@@ -906,6 +910,13 @@ document.addEventListener('DOMContentLoaded', () => {
   liveToast = new bootstrap.Toast(document.getElementById('liveToast'), { delay: 3500 });
 
   document.getElementById('cartModal').addEventListener('show.bs.modal', renderCart);
+
+  // Clear auth inputs whenever auth modal is closed
+  document.getElementById('authModal').addEventListener('hidden.bs.modal', () => {
+    loginForm.reset();
+    signupForm.reset();
+    authAlert.classList.add('d-none');
+  });
 
   initTelegramApp();
   checkAuthSession();
