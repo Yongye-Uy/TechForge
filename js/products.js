@@ -2,7 +2,7 @@
  * TechForge Product Catalog
  * Contains 10 curated computer components and peripherals
  */
-const PRODUCTS = [
+var PRODUCTS = [
   {
     id: 1,
     name: "ApexPro RGB Mechanical Keyboard",
@@ -194,3 +194,7 @@ const PRODUCTS = [
     ]
   }
 ];
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = PRODUCTS;
+}

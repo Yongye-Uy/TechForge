@@ -243,9 +243,80 @@ app.get('/api/orders/my-orders', authenticateToken, async (req, res) => {
   }
 });
 
+// Public endpoint: Get store product catalog
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await db.getAllProducts();
+    res.json({ products });
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.json({ products: require('./js/products') });
+  }
+});
+
 // ==========================================
-// Admin Routes (Role: admin only)
+// Admin Routes (Role: admin / seller only)
 // ==========================================
+
+// Get all products (Admin view)
+app.get('/api/admin/products', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const products = await db.getAllProducts();
+    res.json({ products });
+  } catch (err) {
+    console.error('Admin products fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch products.' });
+  }
+});
+
+// Create / Publish a new product (Admin / Seller)
+app.post('/api/admin/products', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, category, categoryLabel, price, stock, image, description, specs } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Product name is required.' });
+    }
+    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+      return res.status(400).json({ error: 'A valid product price is required.' });
+    }
+    if (!description || !description.trim()) {
+      return res.status(400).json({ error: 'Product description is required.' });
+    }
+
+    const product = await db.createProduct({
+      name,
+      category,
+      categoryLabel,
+      price,
+      stock,
+      image,
+      description,
+      specs,
+      sellerName: `${req.user.fullName || 'TechForge Official'} (Seller)`
+    });
+
+    res.status(201).json({ success: true, product });
+  } catch (err) {
+    console.error('Admin create product error:', err);
+    res.status(500).json({ error: 'Failed to create product: ' + err.message });
+  }
+});
+
+// Delete a product (Admin / Seller)
+app.delete('/api/admin/products/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id, 10);
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    await db.deleteProduct(productId);
+    res.json({ success: true, message: 'Product successfully deleted.' });
+  } catch (err) {
+    console.error('Admin delete product error:', err);
+    res.status(500).json({ error: 'Failed to delete product.' });
+  }
+});
 
 // Get all customers with their total purchase statistics
 app.get('/api/admin/customers', authenticateToken, requireAdmin, async (req, res) => {

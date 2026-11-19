@@ -347,10 +347,15 @@ function renderProducts() {
             >
           </div>
           <div class="product-card-body">
-            <div class="d-flex align-items-center gap-1 text-warning small mb-1">
-              <i class="bi bi-star-fill"></i>
-              <span class="text-dark fw-bold">${product.rating}</span>
-              <span class="text-muted">(${product.reviewCount})</span>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <div class="d-flex align-items-center gap-1 text-warning small">
+                <i class="bi bi-star-fill"></i>
+                <span class="text-dark fw-bold">${product.rating || '4.9'}</span>
+                <span class="text-muted">(${product.reviewCount || 1})</span>
+              </div>
+              <span class="badge bg-light text-secondary border small" style="font-size: 0.72rem;">
+                <i class="bi bi-patch-check-fill text-primary"></i> ${product.sellerName ? (product.sellerName.includes('Admin') ? 'TechForge (Seller)' : product.sellerName) : 'TechForge (Seller)'}
+              </span>
             </div>
             <h3 class="product-card-title">${product.name}</h3>
             <p class="product-card-desc">${product.description}</p>
@@ -443,6 +448,13 @@ function openProductDetail(productId) {
   modalCategory.textContent = product.categoryLabel;
   modalPrice.textContent = `$${product.price.toFixed(2)}`;
   modalDescription.textContent = product.description;
+
+  // Seller info in modal
+  const modalSellerName = document.getElementById('modalSellerName');
+  if (modalSellerName) {
+    modalSellerName.textContent = product.sellerName || 'TechForge Official (Admin)';
+  }
+
   modalImage.src = product.image;
   modalImage.alt = product.name;
   modalImage.onerror = function() {
@@ -451,20 +463,24 @@ function openProductDetail(productId) {
   };
 
   // Star Ratings
-  const fullStars = Math.floor(product.rating);
+  const fullStars = Math.floor(product.rating || 5);
   let starsHtml = '';
   for (let i = 0; i < fullStars; i++) starsHtml += '<i class="bi bi-star-fill me-1"></i>';
-  if (product.rating % 1 !== 0) starsHtml += '<i class="bi bi-star-half me-1"></i>';
+  if ((product.rating || 5) % 1 !== 0) starsHtml += '<i class="bi bi-star-half me-1"></i>';
   modalRatingStars.innerHTML = starsHtml;
-  modalRatingText.textContent = `${product.rating} (${product.reviewCount} verified reviews)`;
+  modalRatingText.textContent = `${product.rating || '5.0'} (${product.reviewCount || 1} verified reviews)`;
 
   // Specifications with EXPLICIT high-contrast styling (fixes Telegram dark-mode white bug)
-  modalSpecsList.innerHTML = product.specs.map(spec => `
+  const specsArr = Array.isArray(product.specs) 
+    ? product.specs 
+    : (typeof product.specs === 'string' ? JSON.parse(product.specs || '[]') : []);
+
+  modalSpecsList.innerHTML = specsArr.length > 0 ? specsArr.map(spec => `
     <li class="d-flex align-items-start gap-2 py-1">
       <i class="bi bi-check-circle-fill text-primary mt-1"></i>
       <span style="color: #0f172a !important; font-weight: 600; font-size: 0.88rem;">${spec}</span>
     </li>
-  `).join('');
+  `).join('') : '<li class="text-muted small py-1">Standard factory specifications apply.</li>';
 
   updateModalSubtotal();
   productDetailModal.show();
@@ -899,8 +915,31 @@ resetFiltersBtn.addEventListener('click', () => {
 });
 
 // ==========================================
-// 9. App Initialization on DOM Ready
+// 9. Dynamic Catalog Sync & App Initialization
 // ==========================================
+async function fetchCatalogProducts() {
+  try {
+    const res = await fetch('/api/products');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.products && Array.isArray(data.products) && data.products.length > 0) {
+        PRODUCTS = data.products;
+        renderProducts();
+        updateCategoryFilterCounts();
+      }
+    }
+  } catch (err) {
+    console.warn('Catalog live sync note:', err.message);
+  }
+}
+
+function updateCategoryFilterCounts() {
+  const allBtn = document.querySelector('.filter-btn[data-category="all"]');
+  if (allBtn) {
+    allBtn.textContent = `All Products (${PRODUCTS.length})`;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Bootstrap Modals
   authModal = new bootstrap.Modal(document.getElementById('authModal'));
@@ -923,6 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTelegramApp();
   checkAuthSession();
   renderProducts();
+  fetchCatalogProducts();
   updateCartBadge();
   updateTelegramMainButton();
 });

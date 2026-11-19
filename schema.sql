@@ -41,12 +41,30 @@ CREATE TABLE IF NOT EXISTS order_items (
     subtotal NUMERIC(10, 2) NOT NULL
 );
 
--- 4. Performance Indexes
+-- 4. Products Table (Catalog & Seller Inventory)
+CREATE TABLE IF NOT EXISTS products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    category_label VARCHAR(100) NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,
+    rating NUMERIC(3, 1) DEFAULT 4.9,
+    review_count INTEGER DEFAULT 1,
+    stock INTEGER DEFAULT 50,
+    image TEXT NOT NULL,
+    description TEXT NOT NULL,
+    specs JSONB DEFAULT '[]'::jsonb,
+    seller_name VARCHAR(150) DEFAULT 'TechForge Official (Admin)',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 
--- 5. Seed Default Admin Account: admin1 / admin-1
+-- 6. Seed Default Admin Account: admin1 / admin-1
 -- Password hash generated with bcryptjs (password: admin-1)
 INSERT INTO users (username, password_hash, role, full_name, email, phone, address)
 VALUES (

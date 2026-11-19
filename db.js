@@ -85,9 +85,26 @@ async function initDB() {
           subtotal NUMERIC(10, 2) NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS products (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          category VARCHAR(100) NOT NULL,
+          category_label VARCHAR(100) NOT NULL,
+          price NUMERIC(10, 2) NOT NULL,
+          rating NUMERIC(3, 1) DEFAULT 4.9,
+          review_count INTEGER DEFAULT 1,
+          stock INTEGER DEFAULT 50,
+          image TEXT NOT NULL,
+          description TEXT NOT NULL,
+          specs JSONB DEFAULT '[]'::jsonb,
+          seller_name VARCHAR(150) DEFAULT 'TechForge Official (Admin)',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
       CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
     `);
 
     // Ensure default admin (admin1 / admin-1) exists
@@ -100,6 +117,23 @@ async function initDB() {
         ['admin1', hashedPassword]
       );
       console.log('👑 Default Admin created in PostgreSQL: (admin1 / admin-1)');
+    }
+
+    // Auto-seed initial 10 catalog products if table is empty
+    const prodCountRes = await client.query('SELECT COUNT(*)::int as count FROM products');
+    if (prodCountRes.rows[0].count === 0) {
+      console.log('📦 Seeding initial products catalog into PostgreSQL...');
+      const defaultProducts = require('./js/products');
+      for (const p of defaultProducts) {
+        await client.query(
+          `INSERT INTO products (id, name, category, category_label, price, rating, review_count, stock, image, description, specs, seller_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'TechForge Official (Admin)')
+           ON CONFLICT (id) DO NOTHING`,
+          [p.id, p.name, p.category, p.categoryLabel, p.price, p.rating, p.reviewCount, p.stock, p.image, p.description, JSON.stringify(p.specs || [])]
+        );
+      }
+      await client.query(`SELECT setval(pg_get_serial_sequence('products', 'id'), coalesce(max(id), 1)) FROM products`);
+      console.log('✅ Initial products catalog seeded successfully.');
     }
 
     return true;
@@ -282,6 +316,103 @@ async function getAllOrders() {
   return orders;
 }
 
+// ==========================================
+// Product Operations (Catalog & Seller)
+// ==========================================
+async function getAllProducts() {
+  const client = getPool();
+  try {
+    const res = await client.query(`
+      SELECT 
+        id, 
+        name, 
+        category, 
+        category_label as "categoryLabel", 
+        price::float as price, 
+        rating::float as rating, 
+        review_count as "reviewCount", 
+        stock, 
+        image, 
+        description, 
+        specs, 
+        seller_name as "sellerName", 
+        created_at as "createdAt"
+      FROM products
+      ORDER BY id ASC
+    `);
+    if (res.rows && res.rows.length > 0) {
+      return res.rows;
+    }
+  } catch (err) {
+    console.warn('PostgreSQL products query note:', err.message);
+  }
+  return require('./js/products');
+}
+
+async function getProductById(id) {
+  const client = getPool();
+  const res = await client.query(`
+    SELECT 
+      id, 
+      name, 
+      category, 
+      category_label as "categoryLabel", 
+      price::float as price, 
+      rating::float as rating, 
+      review_count as "reviewCount", 
+      stock, 
+      image, 
+      description, 
+      specs, 
+      seller_name as "sellerName", 
+      created_at as "createdAt"
+    FROM products WHERE id = $1
+  `, [id]);
+  return res.rows[0] || null;
+}
+
+async function createProduct({ name, category, categoryLabel, price, stock, image, description, specs, sellerName }) {
+  const client = getPool();
+  const cat = (category || 'components').trim().toLowerCase();
+  const catLabel = categoryLabel || (cat.charAt(0).toUpperCase() + cat.slice(1));
+  const res = await client.query(
+    `INSERT INTO products (name, category, category_label, price, stock, image, description, specs, seller_name, rating, review_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 5.0, 1)
+     RETURNING 
+       id, 
+       name, 
+       category, 
+       category_label as "categoryLabel", 
+       price::float as price, 
+       rating::float as rating, 
+       review_count as "reviewCount", 
+       stock, 
+       image, 
+       description, 
+       specs, 
+       seller_name as "sellerName", 
+       created_at as "createdAt"`,
+    [
+      name.trim(),
+      cat,
+      catLabel,
+      Number(price),
+      Number(stock) || 50,
+      image ? image.trim() : `https://placehold.co/600x400/1e293b/ffffff?text=${encodeURIComponent(name.trim())}`,
+      description.trim(),
+      JSON.stringify(Array.isArray(specs) ? specs : []),
+      sellerName || 'TechForge Official (Admin)'
+    ]
+  );
+  return res.rows[0];
+}
+
+async function deleteProduct(id) {
+  const client = getPool();
+  await client.query('DELETE FROM products WHERE id = $1', [id]);
+  return true;
+}
+
 module.exports = {
   getPool,
   initDB,
@@ -293,5 +424,9 @@ module.exports = {
   getOrdersByUserId,
   getAllCustomers,
   getCustomerDetails,
-  getAllOrders
+  getAllOrders,
+  getAllProducts,
+  getProductById,
+  createProduct,
+  deleteProduct
 };
