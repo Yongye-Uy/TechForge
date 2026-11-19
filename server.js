@@ -212,11 +212,15 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       items
     });
 
-    // Notify Telegram Admin Bot
-    telegram.sendOrderNotificationToAdmin({
-      ...newOrder,
-      customer_username: req.user.username
-    });
+    // Notify Telegram Admin Bot (Awaited so Vercel serverless context doesn't freeze early)
+    try {
+      await telegram.sendOrderNotificationToAdmin({
+        ...newOrder,
+        customer_username: req.user.username
+      });
+    } catch (tgErr) {
+      console.warn('Telegram alert skipped or failed:', tgErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -301,6 +305,16 @@ app.get('/api/health', async (req, res) => {
       status: 'error',
       message: `Database connection failed: ${err.message}`
     });
+  }
+});
+
+// Telegram Notification Test Endpoint
+app.get('/api/test-telegram', async (req, res) => {
+  const result = await telegram.testTelegramConnection();
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(400).json(result);
   }
 });
 
